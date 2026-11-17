@@ -33,7 +33,7 @@ import { CompactPagination } from "./CompactPagination";
 import { ErrorAlert } from "./ErrorAlert";
 import { SearchIcon, FilterIcon } from "@patternfly/react-icons";
 import { Table, Thead, Tr, Th, Tbody, Td } from "@patternfly/react-table";
-import { BackendError, SearchResult, searchPackages, InstalledFilterType, type RepositoryCount, type ErrorCode } from "../api";
+import { BackendError, SearchResult, searchPackages, aurSearch, InstalledFilterType, type RepositoryCount, type ErrorCode } from "../api";
 import { plural, REPO_NAME_RE, sanitizeErrorMessage, sanitizeSearchInput } from "../utils";
 import { PackageDetailsDrawer, DETAILS_TRIGGER_ATTR, detailsRowProps } from "./PackageDetailsDrawer";
 import { PackageRowActions, PackageRowActionsProvider, fromRowActions } from "./PackageRowActions";
@@ -62,7 +62,7 @@ function parseRoute(options: RouteOptions): RouteOptions {
 }
 
 function opensSyncDetails(pkg: SearchResult): boolean {
-  return !pkg.installed || pkg.installed_version !== pkg.version || pkg.repository.endsWith("-testing");
+  return pkg.repository === "aur" || !pkg.installed || pkg.installed_version !== pkg.version || pkg.repository.endsWith("-testing");
 }
 
 function refusedRepo(err: unknown, repo: string): string | null {
@@ -186,14 +186,16 @@ export const SearchView: React.FC<SearchViewProps> = ({ routeOptions, onRouteCha
         setErrorCode(undefined);
         setErrorDetails(undefined);
         try {
-          const response = await searchPackages({
-            signal: currentController.signal,
-            query,
-            offset: 0,
-            limit: perPageRef.current,
-            installed: "all",
-            repo,
-          });
+          const response = repo === "aur"
+            ? await aurSearch(query, currentController.signal)
+            : await searchPackages({
+                signal: currentController.signal,
+                query,
+                offset: 0,
+                limit: perPageRef.current,
+                installed: "all",
+                repo,
+              });
           if (currentController.signal.aborted) return;
           setResults(response.results);
           setTotal(response.total);
@@ -248,16 +250,18 @@ export const SearchView: React.FC<SearchViewProps> = ({ routeOptions, onRouteCha
     setErrorDetails(undefined);
     try {
       const offset = (pageNum - 1) * pageSize;
-      const response = await searchPackages({
-        signal: currentController.signal,
-        query,
-        offset,
-        limit: pageSize,
-        installed,
-        sortBy: getSortField(sortIdx),
-        sortDir: sortDirection,
-        repo,
-      });
+      const response = repo === "aur"
+        ? await aurSearch(query, currentController.signal)
+        : await searchPackages({
+            signal: currentController.signal,
+            query,
+            offset,
+            limit: pageSize,
+            installed,
+            sortBy: getSortField(sortIdx),
+            sortDir: sortDirection,
+            repo,
+          });
       if (currentController.signal.aborted) return;
       setResults(response.results);
       setTotal(response.total);
@@ -393,9 +397,14 @@ export const SearchView: React.FC<SearchViewProps> = ({ routeOptions, onRouteCha
   const installedChip = installedFilter !== "all" ? [INSTALLED_FILTER_LABELS[installedFilter]] : [];
   const repoChip = repoFilter !== "all" ? [repoFilter] : [];
 
-  const repoOptions = repoFilter !== "all" && !repositoryCounts.some((c) => c.name === repoFilter)
+  const baseRepoOptions = repoFilter !== "all" && !repositoryCounts.some((c) => c.name === repoFilter)
     ? [...repositoryCounts, { name: repoFilter, count: 0 }]
     : repositoryCounts;
+  const repoOptions = hasSearched || repoFilter !== "all"
+    ? (baseRepoOptions.some((c) => c.name === "aur")
+        ? baseRepoOptions
+        : [...baseRepoOptions, { name: "aur", count: 0 }])
+    : [];
   const allReposCount = repositoryCounts.reduce((sum, c) => sum + c.count, 0);
   const inOtherRepos = allReposCount - (repositoryCounts.find((c) => c.name === repoFilter)?.count ?? 0);
 
@@ -616,18 +625,22 @@ export const SearchView: React.FC<SearchViewProps> = ({ routeOptions, onRouteCha
         ) : results.length === 0 ? (
           <EmptyState headingLevel="h3" titleText="No packages found" icon={SearchIcon}>
             <EmptyStateBody>
-              No package in the synced databases matches {currentQuery}.
-              {onSearchInstalled && " Packages built locally or from the AUR are listed only under installed packages."}
+              No package matches &quot;{currentQuery}&quot;{inRepo}.
             </EmptyStateBody>
-            {onSearchInstalled && (
-              <EmptyStateFooter>
-                <EmptyStateActions>
-                  <Button variant="primary" onClick={() => onSearchInstalled(currentQuery)}>
+            <EmptyStateFooter>
+              <EmptyStateActions>
+                {repoFilter !== "aur" && (
+                  <Button variant="primary" onClick={() => handleRepoFilterChange("aur")}>
+                    Search in AUR
+                  </Button>
+                )}
+                {onSearchInstalled && (
+                  <Button variant="secondary" onClick={() => onSearchInstalled(currentQuery)}>
                     Search installed packages
                   </Button>
-                </EmptyStateActions>
-              </EmptyStateFooter>
-            )}
+                )}
+              </EmptyStateActions>
+            </EmptyStateFooter>
           </EmptyState>
         ) : (
           <>
@@ -683,7 +696,9 @@ export const SearchView: React.FC<SearchViewProps> = ({ routeOptions, onRouteCha
                       <Td dataLabel="Version"><Label isCompact variant="outline">{pkg.version}</Label></Td>
                       <Td dataLabel="Description">{pkg.description || "-"}</Td>
                       <Td dataLabel="Repository">
-                        <Label isCompact color="grey">{pkg.repository}</Label>
+                        <Label isCompact color={pkg.repository === "aur" ? "purple" : "grey"}>
+                          {pkg.repository}
+                        </Label>
                       </Td>
                       <Td dataLabel="Status">
                         {pkg.installed ? (

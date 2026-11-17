@@ -2993,7 +2993,9 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
                     )}
                   </Td>
                   <Td dataLabel="Repository">
-                    <Label isCompact color="grey">{update.repository}</Label>
+                    <Label isCompact color={update.repository === "aur" ? "purple" : "grey"}>
+                      {update.repository}
+                    </Label>
                   </Td>
                   <Td dataLabel="Version">{update.current_version} {"\u2192"} {update.new_version}</Td>
                   <Td dataLabel="Download">{formatSize(update.download_size)}</Td>

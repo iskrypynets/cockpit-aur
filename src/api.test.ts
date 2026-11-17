@@ -42,7 +42,7 @@ it("requires administrative access to preview configuration contents", async () 
   mockSpawn.mockReturnValue(createMockSpawnPromise("{}"));
   await previewPacnew("/etc/example.conf.pacnew");
   expect(mockSpawn).toHaveBeenLastCalledWith(
-    ["/usr/libexec/cockpit-pacman/cockpit-pacman-backend", "preview-pacnew", "/etc/example.conf.pacnew"],
+    ["/usr/libexec/cockpit-yay/cockpit-yay-backend", "preview-pacnew", "/etc/example.conf.pacnew"],
     { superuser: "require", err: "message" },
   );
 });
@@ -54,7 +54,7 @@ it("sends merged configuration over stdin without exposing contents in arguments
   const request = { path: "/etc/example.conf.pacnew", revision: "pair", resolution: "save_merged" as const, merged_content: "password=secret-ä\n" };
   await resolvePacnew(request);
   expect(mockSpawn).toHaveBeenLastCalledWith(
-    ["/usr/libexec/cockpit-pacman/cockpit-pacman-backend", "resolve-pacnew"],
+    ["/usr/libexec/cockpit-yay/cockpit-yay-backend", "resolve-pacnew"],
     { superuser: "require", err: "message" },
   );
   expect(input).toHaveBeenCalledWith(JSON.stringify(request));
@@ -64,7 +64,7 @@ it("scans pending files with administrative access when the session has it", asy
   mockSpawn.mockReturnValue(createMockSpawnPromise('{"has_pacnew":false,"files":[]}'));
   await getPacnewStatus();
   expect(mockSpawn).toHaveBeenLastCalledWith(
-    ["/usr/libexec/cockpit-pacman/cockpit-pacman-backend", "pacnew-status"],
+    ["/usr/libexec/cockpit-yay/cockpit-yay-backend", "pacnew-status"],
     { superuser: "try", err: "message" },
   );
 });
@@ -73,7 +73,7 @@ it("can complete the pending-file scan with administrative access", async () => 
   mockSpawn.mockReturnValue(createMockSpawnPromise('{"has_pacnew":false,"files":[]}'));
   await getPacnewStatus(true);
   expect(mockSpawn).toHaveBeenLastCalledWith(
-    ["/usr/libexec/cockpit-pacman/cockpit-pacman-backend", "pacnew-status"],
+    ["/usr/libexec/cockpit-yay/cockpit-yay-backend", "pacnew-status"],
     { superuser: "require", err: "message" },
   );
 });
@@ -98,7 +98,7 @@ it("reads protected mirror undo backups with administrative access", async () =>
   mockSpawn.mockReturnValue(createMockSpawnPromise(JSON.stringify({ backups: [], warnings: [] })));
   await listMirrorBackups();
   expect(mockSpawn).toHaveBeenCalledExactlyOnceWith(
-    ["/usr/libexec/cockpit-pacman/cockpit-pacman-backend", "list-mirror-backups"],
+    ["/usr/libexec/cockpit-yay/cockpit-yay-backend", "list-mirror-backups"],
     { superuser: "require", err: "message" },
   );
 });
@@ -130,7 +130,7 @@ describe.each([
     await api.get();
 
     expect(mockSpawn).toHaveBeenCalledExactlyOnceWith(
-      ["/usr/libexec/cockpit-pacman/cockpit-pacman-backend", "dismissal-state", kind],
+      ["/usr/libexec/cockpit-yay/cockpit-yay-backend", "dismissal-state", kind],
       { err: "message" }
     );
   });
@@ -142,7 +142,7 @@ describe.each([
     await api.mark(signature);
 
     expect(mockSpawn).toHaveBeenCalledExactlyOnceWith(
-      ["/usr/libexec/cockpit-pacman/cockpit-pacman-backend", "mark-dismissed", kind, signature],
+      ["/usr/libexec/cockpit-yay/cockpit-yay-backend", "mark-dismissed", kind, signature],
       { err: "message" }
     );
   });
@@ -165,7 +165,7 @@ describe("getDependencyTree", () => {
     const response = await getDependencyTree(params);
 
     expect(mockSpawn).toHaveBeenCalledWith(
-      ["/usr/libexec/cockpit-pacman/cockpit-pacman-backend", "dependency-tree", ...args],
+      ["/usr/libexec/cockpit-yay/cockpit-yay-backend", "dependency-tree", ...args],
       { err: "message" }
     );
     expect(response).toEqual(mockDependencyTreeResponse);
@@ -216,7 +216,7 @@ describe("listInstalled", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       [
-        "/usr/libexec/cockpit-pacman/cockpit-pacman-backend",
+        "/usr/libexec/cockpit-yay/cockpit-yay-backend",
         "list-installed",
         "0",
         "50",
@@ -249,7 +249,7 @@ describe("listInstalled", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       [
-        "/usr/libexec/cockpit-pacman/cockpit-pacman-backend",
+        "/usr/libexec/cockpit-yay/cockpit-yay-backend",
         "list-installed",
         "10",
         "25",
@@ -345,7 +345,7 @@ describe("checkUpdates", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       [
-        "/usr/libexec/cockpit-pacman/cockpit-pacman-backend",
+        "/usr/libexec/cockpit-yay/cockpit-yay-backend",
         "check-updates",
       ],
       { err: "message" }
@@ -369,7 +369,7 @@ describe("getPackageInfo", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       [
-        "/usr/libexec/cockpit-pacman/cockpit-pacman-backend",
+        "/usr/libexec/cockpit-yay/cockpit-yay-backend",
         "local-package-info",
         "linux",
       ],
@@ -394,7 +394,7 @@ describe("searchPackages", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       [
-        "/usr/libexec/cockpit-pacman/cockpit-pacman-backend",
+        "/usr/libexec/cockpit-yay/cockpit-yay-backend",
         "search",
         "linux",
         "0",
@@ -954,7 +954,7 @@ describe("listArchiveVersions", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       [
-        "/usr/libexec/cockpit-pacman/cockpit-pacman-backend",
+        "/usr/libexec/cockpit-yay/cockpit-yay-backend",
         "list-archive-versions",
         "bash",
       ],
@@ -971,7 +971,7 @@ describe("listArchiveVersions", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       [
-        "/usr/libexec/cockpit-pacman/cockpit-pacman-backend",
+        "/usr/libexec/cockpit-yay/cockpit-yay-backend",
         "list-archive-versions",
         "bash",
         "5.1",
@@ -989,7 +989,7 @@ describe("listArchiveVersions", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       [
-        "/usr/libexec/cockpit-pacman/cockpit-pacman-backend",
+        "/usr/libexec/cockpit-yay/cockpit-yay-backend",
         "list-archive-versions",
         "bash",
       ],
@@ -1039,7 +1039,7 @@ describe("downgradeFromArchive", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       [
-        "/usr/libexec/cockpit-pacman/cockpit-pacman-backend",
+        "/usr/libexec/cockpit-yay/cockpit-yay-backend",
         "downgrade-archive",
         "bash",
         "bash-5.1.016-1-x86_64.pkg.tar.zst",
@@ -1230,7 +1230,7 @@ describe("backend installation path", () => {
     mockSpawn.mockReturnValue(createMockSpawnPromise(JSON.stringify(mockUpdatesResponse)));
     try {
       await checkUpdates();
-      expect(mockSpawn.mock.lastCall?.[0][0]).toBe("/usr/libexec/cockpit-pacman/cockpit-pacman-backend");
+      expect(mockSpawn.mock.lastCall?.[0][0]).toBe("/usr/libexec/cockpit-yay/cockpit-yay-backend");
     } finally {
       delete cockpit.manifests;
     }
@@ -1247,7 +1247,7 @@ describe("signoff batch API", () => {
     const targets = [{ pkgbase: "htop", repo: "extra-testing", arch: "x86_64" }];
     await signoffPackages(targets, { username: "fixture", password: "秘密" });
     expect(mockSpawn.mock.lastCall).toEqual([
-      ["/usr/libexec/cockpit-pacman/cockpit-pacman-backend", "signoff-batch", JSON.stringify(targets)],
+      ["/usr/libexec/cockpit-yay/cockpit-yay-backend", "signoff-batch", JSON.stringify(targets)],
       { err: "message" },
     ]);
     expect(process.input).toHaveBeenCalledOnce();

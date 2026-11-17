@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Alert,
   AlertActionLink,
@@ -10,7 +10,7 @@ import {
   Flex,
   FlexItem,
 } from "@patternfly/react-core";
-import { UpdateInfo, KeyringStatusResponse, formatSize } from "../api";
+import { UpdateInfo, KeyringStatusResponse, formatSize, getAurHelper, type AurHelperInfo } from "../api";
 import { StatBox } from "./StatBox";
 import { kebabToggle } from "./KebabToggle";
 import { useAdminPermission } from "../hooks/useAdminPermission";
@@ -44,6 +44,15 @@ export const SystemOverviewCard: React.FC<{
   const isAdmin = useAdminPermission();
   const mayToggle = isAdmin === true && !securityToggleBusy && securityEnabled !== null;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [aurHelper, setAurHelper] = useState<AurHelperInfo | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAurHelper()
+      .then((info) => { if (!cancelled) setAurHelper(info); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const settingsMenu = (
     <Dropdown
       isOpen={menuOpen}
@@ -157,6 +166,18 @@ export const SystemOverviewCard: React.FC<{
             />
           </FlexItem>
         )}
+        <FlexItem>
+          <StatBox
+            label="AUR Helper"
+            value={aurHelper ? (aurHelper.available ? aurHelper.helper : "none") : "…"}
+            color={aurHelper?.available ? "success" : "default"}
+            description={
+              aurHelper?.available
+                ? `${aurHelper.helper} detected at ${aurHelper.path} (${aurHelper.version || "active"})`
+                : "Neither yay nor paru was detected in PATH. Install yay or paru to enable AUR package management."
+            }
+          />
+        </FlexItem>
         <FlexItem align={{ default: "alignRight" }}>
           {settingsMenu}
         </FlexItem>

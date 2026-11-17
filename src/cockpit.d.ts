@@ -63,7 +63,7 @@ interface CockpitLocation {
 }
 
 declare const cockpit: {
-  manifests?: { pacman?: { config?: { backend?: unknown } } };
+  manifests?: { yay?: { config?: { backend?: unknown } }; pacman?: { config?: { backend?: unknown } } };
   /**
    * "locationchanged" fires asynchronously after the location changes.
    * "visibilitychange" fires when `hidden` changes.

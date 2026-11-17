@@ -2,13 +2,15 @@ import { useState, useRef, useCallback } from "react";
 import {
   PackageDetails,
   SyncPackageDetails,
+  AurPackageDetails,
   getPackageInfo,
   getSyncPackageInfo,
+  getAurInfo,
   BackendError,
   type ErrorCode,
 } from "../api";
 
-export type PackageDetailsData = PackageDetails | SyncPackageDetails;
+export type PackageDetailsData = PackageDetails | SyncPackageDetails | AurPackageDetails;
 
 export interface FetchDetailsOptions {
   repo?: string;
@@ -49,6 +51,9 @@ export function usePackageDetails(
     options: FetchDetailsOptions | undefined,
     isStale: () => boolean,
   ): Promise<PackageDetailsData> => {
+    if (options?.repo === "aur") {
+      return getAurInfo(name);
+    }
     const strategy = options?.strategy ?? "local";
     if (strategy === "sync") return getSyncPackageInfo(name, options?.repo);
     if (strategy === "local") return getPackageInfo(name);

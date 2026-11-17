@@ -7,6 +7,9 @@ import { startSystemWatch, type FileWatch } from "./systemWatch";
 // backend/src + src/bindings). Imported for local use and re-exported so
 // consumers keep importing them from "../api".
 import type {
+  AurHelperInfo,
+  AurPackageDetails,
+  AurPkgbuildResponse,
   CacheFiles,
   CacheInfo,
   CacheCleanupPreview,
@@ -373,6 +376,22 @@ export async function searchPackages(params: SearchParams): Promise<SearchRespon
   return runBackend<SearchResponse>("search", [sanitizeSearchInput(query), String(offset), String(limit), installed, sortBy, sortDir, ...(repo ? [repo] : [])], { superuser: "none", signal: params.signal });
 }
 
+export async function aurSearch(query: string, signal?: AbortSignal): Promise<SearchResponse> {
+  return runBackend<SearchResponse>("aur-search", [sanitizeSearchInput(query)], { superuser: "none", signal });
+}
+
+export async function getAurInfo(name: string): Promise<AurPackageDetails> {
+  return runBackend<AurPackageDetails>("aur-info", [sanitizeSearchInput(name)], { superuser: "none" });
+}
+
+export async function getAurPkgbuild(name: string): Promise<AurPkgbuildResponse> {
+  return runBackend<AurPkgbuildResponse>("aur-pkgbuild", [sanitizeSearchInput(name)], { superuser: "none" });
+}
+
+export async function getAurHelper(): Promise<AurHelperInfo> {
+  return runBackend<AurHelperInfo>("aur-helper", [], { superuser: "none" });
+}
+
 export async function getSyncPackageInfo(name: string, repo?: string): Promise<SyncPackageDetails> {
   const args = repo ? [name, repo] : [name];
   return runBackend<SyncPackageDetails>("sync-package-info", args, { superuser: "none" });
@@ -497,6 +516,8 @@ const SYSTEM_CHANGE_COMMANDS: Record<string, SystemChangeKind> = {
   "refresh-keyring": "system",
   "init-keyring": "system",
   "sync-database": "sync",
+  "aur-install": "system",
+  "aur-upgrade": "system",
 };
 
 /** Subscribes to completed mutations and external changes. Failures also notify because state may have changed. */
@@ -749,7 +770,7 @@ const activeTransactionListeners = new Set<ActiveTransactionListener>();
 const EXTERNAL_COMMAND = "external";
 const PROGRESS_PUBLISH_MS = 250;
 
-const TARGETED_COMMANDS = new Set(["install-package", "remove-package", "downgrade", "downgrade-archive"]);
+const TARGETED_COMMANDS = new Set(["install-package", "remove-package", "downgrade", "downgrade-archive", "aur-install"]);
 
 /** The system-changing streaming command currently running in this page, if any. */
 export function getActiveTransaction(): ActiveTransaction | null {
@@ -1178,6 +1199,37 @@ export function installPackage(
   args.push(approvedRemovals.map(pkg => sanitizeSearchInput(pkg)).join(","));
   if (target) args.push(...installTargetArgs(target));
   return runStreamingBackend("install-package", args, callbacks, { gracefulCancel: true });
+}
+
+export function installAurPackage(
+  callbacks: UpgradeCallbacks,
+  name: string,
+  helper?: string,
+): StreamingHandle {
+  const args = [sanitizeSearchInput(name)];
+  if (helper) args.push(helper);
+  if (callbacks.timeout !== undefined) args.push(String(callbacks.timeout));
+  return runStreamingBackend(
+    "aur-install",
+    args,
+    { ...callbacks, superuser: "none" },
+    { gracefulCancel: true }
+  );
+}
+
+export function upgradeAurPackages(
+  callbacks: UpgradeCallbacks,
+  helper?: string,
+): StreamingHandle {
+  const args: string[] = [];
+  if (helper) args.push(helper);
+  if (callbacks.timeout !== undefined) args.push(String(callbacks.timeout));
+  return runStreamingBackend(
+    "aur-upgrade",
+    args,
+    { ...callbacks, superuser: "none" },
+    { gracefulCancel: true }
+  );
 }
 
 export function removePackage(

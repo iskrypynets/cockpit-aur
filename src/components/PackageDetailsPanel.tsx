@@ -44,8 +44,12 @@ import {
   getSecurityInfo,
   getPackageInfo,
   getSyncPackageInfo,
+  getAurInfo,
+  installAurPackage,
   setInstallReason,
+  type AurPackageDetails,
 } from "../api";
+import { PKGBUILDModal } from "./PKGBUILDModal";
 import { ErrorDetails } from "./ErrorDetails";
 import { ErrorAlert } from "./ErrorAlert";
 import { toLoadFailure, type LoadFailure } from "./LoadErrorState";
@@ -59,10 +63,14 @@ import { PackageActionModal, installConfig, reinstallConfig, uninstallConfig } f
 import { PackageVerbMenuItems, packageVerbs, readSyncVersion, reasonPhrase, type PackageVerb } from "./packageVerbs";
 import { useNavigation } from "../contexts/NavigationContext";
 
-type PackageInfo = PackageDetails | SyncPackageDetails;
+type PackageInfo = PackageDetails | SyncPackageDetails | AurPackageDetails;
 
 function isInstalledPackage(pkg: PackageInfo): pkg is PackageDetails {
   return "install_date" in pkg && "reason" in pkg && "validation" in pkg;
+}
+
+function isAurPackage(pkg: PackageInfo): pkg is AurPackageDetails {
+  return "num_votes" in pkg || "package_base" in pkg;
 }
 
 /** Package name of an optdepends entry such as "python-foo>=1.2: for bar". */
@@ -89,6 +97,9 @@ const activePanelId = () =>
   document.querySelector<HTMLElement>('[role="tabpanel"]:not([hidden])')?.id ?? null;
 
 async function readPackage(name: string, repo?: string | null): Promise<PackageInfo> {
+  if (repo === "aur") {
+    return await getAurInfo(name);
+  }
   try {
     return await getPackageInfo(name);
   } catch (error) {
@@ -243,8 +254,10 @@ export function usePackageDetailsPanel({
   const noticeRef = useRef<HTMLDivElement>(null);
   const canAdminister = useAdminPermission();
   const transaction = useActiveTransaction();
+  const [pkgbuildOpen, setPkgbuildOpen] = useState(false);
+  const [aurInstalling, setAurInstalling] = useState(false);
   const detailsRequested = packageDetails !== null || isLoading || !!error;
-  const childOpen = !!(installTarget || reinstallTarget || uninstallTarget || downgrade?.isOpen);
+  const childOpen = !!(installTarget || reinstallTarget || uninstallTarget || downgrade?.isOpen || pkgbuildOpen);
   const tabActive = useTabActive();
   const isOpen = detailsRequested && tabActive && !(hidesUnderChild && childOpen);
   const reduceMotion = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
@@ -296,9 +309,9 @@ export function usePackageDetailsPanel({
   const shownError = optdep ? optdep.error : error;
   const shownErrorCode = optdep ? optdep.code : errorCode;
   const shownErrorContext = optdep ? optdep.context : errorDetails;
-  const isInstalled = details && isInstalledPackage(details);
+  const isInstalled = details ? (isInstalledPackage(details) || (isAurPackage(details) && details.installed)) : false;
   const name = details?.name;
-  const otherInstalledVersion = details && !isInstalledPackage(details) && details.installed_version !== details.version
+  const otherInstalledVersion = details && !isInstalledPackage(details) && details.installed_version && details.installed_version !== details.version
     ? details.installed_version
     : undefined;
 
@@ -313,9 +326,9 @@ export function usePackageDetailsPanel({
     return () => { cancelled = true; };
   }, [name, hostKnowsIgnore, fetchedForName]);
 
-  const repository = details?.repository || null;
+  const repository = details ? (isAurPackage(details) ? "aur" : details.repository || null) : null;
   const hostSync = optdep === null ? syncVersionProp : undefined;
-  const syncKey = isInstalled && repository && hostSync === undefined ? `${details.name}\0${repository}` : null;
+  const syncKey = details && isInstalled && repository && hostSync === undefined ? `${details.name}\0${repository}` : null;
   const readSync = syncKey !== null && syncRead?.key === syncKey ? syncRead.version : undefined;
   useEffect(() => {
     if (syncKey === null || readSync !== undefined || !name || !repository) return;
@@ -370,7 +383,7 @@ export function usePackageDetailsPanel({
     const reads = [pkg];
     if (packageDetails && packageDetails.name !== pkg) reads.push(packageDetails.name);
     const results = await Promise.all(reads.map((n) =>
-      readPackage(n, n === packageDetails?.name ? packageDetails.repository : undefined).catch(() => null)));
+      readPackage(n, n === packageDetails?.name ? (isAurPackage(packageDetails) ? "aur" : ("repository" in packageDetails ? packageDetails.repository : undefined)) : undefined).catch(() => null)));
     setFresh((m) => {
       const next = { ...m };
       results.forEach((r) => { if (r) next[r.name] = r; });
@@ -452,7 +465,7 @@ export function usePackageDetailsPanel({
     onClose();
   };
 
-  const shownTarget = (): Target | null => (details ? { name: details.name, version: details.version, repository: details.repository ?? undefined } : null);
+  const shownTarget = (): Target | null => (details ? { name: details.name, version: details.version, repository: repository ?? undefined } : null);
 
   const handleDowngrade = () => {
     if (!details || !isInstalledPackage(details) || !downgrade || downgrade.isOpen) return;
@@ -505,13 +518,38 @@ export function usePackageDetailsPanel({
   const handleReinstall = () => setReinstallTarget(shownTarget());
   const handleInstall = () => setInstallTarget(shownTarget());
 
-  const verbs: PackageVerb[] = details ? packageVerbs({
+  const handleAurInstall = () => {
+    if (!details) return;
+    const pkgName = details.name;
+    setAurInstalling(true);
+    installAurPackage(
+      {
+        onComplete: () => {
+          setAurInstalling(false);
+          setPkgbuildOpen(false);
+          void refreshAfter(pkgName, `Successfully installed ${pkgName}`);
+          onPackageInstalled?.();
+        },
+        onError: (err) => {
+          setAurInstalling(false);
+          setActionError({
+            name: pkgName,
+            title: `Could not install ${pkgName}`,
+            ...toLoadFailure(err),
+          });
+        },
+      },
+      pkgName,
+    );
+  };
+
+  const verbs: PackageVerb[] = details && !isAurPackage(details) ? packageVerbs({
     name: details.name,
-    installedVersion: isInstalled ? details.version : null,
+    installedVersion: isInstalledPackage(details) ? details.version : null,
     repository,
     syncVersion: hostSync !== undefined ? hostSync : readSync,
     ignored,
-    reason: isInstalled ? details.reason : null,
+    reason: isInstalledPackage(details) ? details.reason : null,
     canDowngrade: !!downgrade,
     gate: gateFor,
     busyReason,
@@ -525,7 +563,7 @@ export function usePackageDetailsPanel({
         leaveAll();
       }),
       setIgnored: (ignore) => changeIgnore(details.name, ignore, false),
-      setReason: (reason) => { if (isInstalled) changeReason(details, reason, false); },
+      setReason: (reason) => { if (isInstalledPackage(details)) changeReason(details, reason, false); },
       reinstall: handleReinstall,
       downgrade: handleDowngrade,
       install: handleInstall,
@@ -548,7 +586,7 @@ export function usePackageDetailsPanel({
   const highlighted = (field: "reason" | "ignore") => highlight !== null && highlight.name === name && highlight.field === field;
   const title = (
         details
-          ? <>{details.name} <Label isCompact variant="outline">{details.version}</Label> <Label isCompact color="grey">{details.repository || "user"}</Label>{otherInstalledVersion && <> <Label isCompact variant="outline" color="blue">Installed: {otherInstalledVersion}</Label></>}{isInstalled && !details.repository && " "}{isInstalled && !details.repository && (
+          ? <>{details.name} <Label isCompact variant="outline">{details.version}</Label> <Label isCompact color="grey">{repository || "user"}</Label>{otherInstalledVersion && <> <Label isCompact variant="outline" color="blue">Installed: {otherInstalledVersion}</Label></>}{isInstalled && !repository && " "}{isInstalled && !repository && (
               <HelpPopover
                 label="user package"
                 header="User package"
@@ -633,7 +671,7 @@ export function usePackageDetailsPanel({
             ) : null;
           })()}
 
-          {details.repository && ["core", "extra", "multilib"].includes(details.repository) && (
+          {repository && ["core", "extra", "multilib"].includes(repository) && (
             <DescriptionListGroup>
               <DescriptionListTerm>Package source</DescriptionListTerm>
               <DescriptionListDescription>
@@ -676,7 +714,7 @@ export function usePackageDetailsPanel({
             </DescriptionListGroup>
           )}
 
-          {details.groups.length > 0 && (
+          {"groups" in details && details.groups.length > 0 && (
             <DescriptionListGroup>
               <DescriptionListTerm>
                 Groups{" "}
@@ -696,20 +734,85 @@ export function usePackageDetailsPanel({
             </DescriptionListGroup>
           )}
 
-          <DescriptionListGroup>
-            <DescriptionListTerm>
-              Architecture{" "}
-              <HelpPopover
-                label="package architecture"
-                header="Package architecture"
-                body="The CPU architecture this package was built for. 'x86_64' is compiled native code. 'any' means the package is architecture-independent (scripts, data, fonts, etc.)."
-              />
-            </DescriptionListTerm>
-            <DescriptionListDescription>
-              {details.architecture || "any"}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
+          {"architecture" in details && details.architecture && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>
+                Architecture{" "}
+                <HelpPopover
+                  label="package architecture"
+                  header="Package architecture"
+                  body="The CPU architecture this package was built for. 'x86_64' is compiled native code. 'any' means the package is architecture-independent (scripts, data, fonts, etc.)."
+                />
+              </DescriptionListTerm>
+              <DescriptionListDescription>
+                {details.architecture}
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
 
+          {isAurPackage(details) && (
+            <>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Maintainer</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {details.maintainer ? (
+                    <a
+                      href={`https://aur.archlinux.org/packages?K=${encodeURIComponent(details.maintainer)}&SeB=m`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {details.maintainer}
+                    </a>
+                  ) : (
+                    <Label color="red">Orphan (unmaintained)</Label>
+                  )}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+
+              <DescriptionListGroup>
+                <DescriptionListTerm>Votes &amp; Popularity</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Label isCompact color="blue">
+                    {details.num_votes} votes
+                  </Label>{" "}
+                  <Label isCompact variant="outline">
+                    {details.popularity.toFixed(2)} popularity
+                  </Label>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+
+              {details.first_submitted && (
+                <DescriptionListGroup>
+                  <DescriptionListTerm>First submitted</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <TimeAgo timestamp={details.first_submitted} />
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              )}
+
+              {details.last_modified && (
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Last modified</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <TimeAgo timestamp={details.last_modified} />
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              )}
+
+              <DescriptionListGroup>
+                <DescriptionListTerm>AUR Page</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <a
+                    href={`https://aur.archlinux.org/packages/${encodeURIComponent(details.name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View on aur.archlinux.org
+                  </a>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            </>
+          )}
 
           {!isInstalled && "download_size" in details && (
             <DescriptionListGroup>
@@ -720,12 +823,14 @@ export function usePackageDetailsPanel({
             </DescriptionListGroup>
           )}
 
-          <DescriptionListGroup>
-            <DescriptionListTerm>Installed size</DescriptionListTerm>
-            <DescriptionListDescription>
-              {formatSize(details.installed_size)}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
+          {"installed_size" in details && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Installed size</DescriptionListTerm>
+              <DescriptionListDescription>
+                {formatSize(details.installed_size)}
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
 
           {ignored !== undefined && (
             <DescriptionListGroup>
@@ -740,14 +845,16 @@ export function usePackageDetailsPanel({
             </DescriptionListGroup>
           )}
 
-          <DescriptionListGroup>
-            <DescriptionListTerm>Build date</DescriptionListTerm>
-            <DescriptionListDescription>
-              <TimeAgo timestamp={details.build_date} />
-            </DescriptionListDescription>
-          </DescriptionListGroup>
+          {"build_date" in details && details.build_date && (
+            <DescriptionListGroup>
+              <DescriptionListTerm>Build date</DescriptionListTerm>
+              <DescriptionListDescription>
+                <TimeAgo timestamp={details.build_date} />
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
 
-          {isInstalled && (
+          {isInstalledPackage(details) && (
             <>
               <DescriptionListGroup>
                 <DescriptionListTerm>Install date</DescriptionListTerm>
@@ -776,8 +883,7 @@ export function usePackageDetailsPanel({
             </>
           )}
 
-
-          {isInstalled && details.update_stats && (
+          {isInstalledPackage(details) && details.update_stats && (
             <>
               <DescriptionListGroup>
                 <DescriptionListTerm>Updates</DescriptionListTerm>
@@ -825,27 +931,45 @@ export function usePackageDetailsPanel({
             </DescriptionListGroup>
           )}
 
-          {details.optdepends.length > 0 && (
+          {(() => {
+            const optDepends = "optdepends" in details ? details.optdepends : ("opt_depends" in details ? details.opt_depends : []);
+            const installedOpts = "installed_optdepends" in details ? details.installed_optdepends : [];
+            if (optDepends.length === 0) return null;
+            return (
+              <DescriptionListGroup>
+                <DescriptionListTerm>Optional dependencies</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <List isPlain>
+                    {optDepends.map((dep: string) => {
+                      const depName = optdepName(dep);
+                      const rest = dep.slice(dep.indexOf(depName) + depName.length);
+                      return (
+                        <ListItem key={dep}>
+                          <Button variant="link" isInline data-optdep={depName} onClick={() => openOptdep(dep)}>
+                            {depName}
+                          </Button>
+                          {rest}
+                          {installedOpts?.includes(depName) && (
+                            <>{" "}<Label isCompact color="green">installed</Label></>
+                          )}
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            );
+          })()}
+
+          {"make_depends" in details && details.make_depends.length > 0 && (
             <DescriptionListGroup>
-              <DescriptionListTerm>Optional dependencies</DescriptionListTerm>
+              <DescriptionListTerm>Build dependencies (makedepends)</DescriptionListTerm>
               <DescriptionListDescription>
-                <List isPlain>
-                  {details.optdepends.map((dep: string) => {
-                    const depName = optdepName(dep);
-                    const rest = dep.slice(dep.indexOf(depName) + depName.length);
-                    return (
-                      <ListItem key={dep}>
-                        <Button variant="link" isInline data-optdep={depName} onClick={() => openOptdep(dep)}>
-                          {depName}
-                        </Button>
-                        {rest}
-                        {details.installed_optdepends?.includes(depName) && (
-                          <>{" "}<Label isCompact color="green">installed</Label></>
-                        )}
-                      </ListItem>
-                    );
-                  })}
-                </List>
+                <LabelGroup numLabels={10}>
+                  {details.make_depends.map((dep: string) => (
+                    <Label key={dep} variant="outline" color="blue">{dep}</Label>
+                  ))}
+                </LabelGroup>
               </DescriptionListDescription>
             </DescriptionListGroup>
           )}
@@ -890,7 +1014,7 @@ export function usePackageDetailsPanel({
             </DescriptionListGroup>
           )}
 
-          {details.replaces.length > 0 && (
+          {"replaces" in details && details.replaces && details.replaces.length > 0 && (
             <DescriptionListGroup>
               <DescriptionListTerm>
                 Replaces{" "}
@@ -910,7 +1034,7 @@ export function usePackageDetailsPanel({
             </DescriptionListGroup>
           )}
 
-          {isInstalled && details.required_by.length > 0 && (
+          {isInstalledPackage(details) && details.required_by.length > 0 && (
             <DescriptionListGroup>
               <DescriptionListTerm>Required by</DescriptionListTerm>
               <DescriptionListDescription>
@@ -923,7 +1047,7 @@ export function usePackageDetailsPanel({
             </DescriptionListGroup>
           )}
 
-          {isInstalled && details.optional_for.length > 0 && (
+          {isInstalledPackage(details) && details.optional_for.length > 0 && (
             <DescriptionListGroup>
               <DescriptionListTerm>Optional for</DescriptionListTerm>
               <DescriptionListDescription>
@@ -937,7 +1061,7 @@ export function usePackageDetailsPanel({
           )}
 
 
-          {isInstalled && details.packager && (
+          {isInstalledPackage(details) && details.packager && (
             <DescriptionListGroup>
               <DescriptionListTerm>Packager</DescriptionListTerm>
               <DescriptionListDescription>
@@ -953,7 +1077,7 @@ export function usePackageDetailsPanel({
             </DescriptionListGroup>
           )}
 
-          {isInstalled && details.validation.length > 0 && (
+          {isInstalledPackage(details) && details.validation.length > 0 && (
             <DescriptionListGroup>
               <DescriptionListTerm>
                 Validation{" "}
@@ -1027,6 +1151,22 @@ export function usePackageDetailsPanel({
 
   const footer = details && !shownLoading ? (
         <>
+          {isAurPackage(details) && (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => setPkgbuildOpen(true)}
+              >
+                Review PKGBUILD
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => setPkgbuildOpen(true)}
+              >
+                {details.installed ? "Reinstall with Yay" : "Install with Yay"}
+              </Button>
+            </>
+          )}
           {installVerb && (
             <GatedButton
               gate={installVerb.gate}
@@ -1117,6 +1257,15 @@ export function usePackageDetailsPanel({
           onPackageInstalled?.();
           void refreshAfter(installTarget.name, `${installTarget.name} installed`);
         }}
+      />
+    )}
+    {details && isAurPackage(details) && (
+      <PKGBUILDModal
+        isOpen={pkgbuildOpen}
+        packageName={details.name}
+        onClose={() => setPkgbuildOpen(false)}
+        onInstall={handleAurInstall}
+        isInstalling={aurInstalling}
       />
     )}
     </>
