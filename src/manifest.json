@@ -4,8 +4,8 @@
     "cockpit": "300"
   },
   "menu": {
-    "pacman": {
-      "label": "Pacman",
+    "yay": {
+      "label": "Yay & Pacman",
       "path": "index.html",
       "order": 50
     }

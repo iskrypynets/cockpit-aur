@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const executable = "cockpit-pacman-backend";
+const executable = "cockpit-yay-backend";
 
 function installFile(source, destination, mode) {
   mkdirSync(dirname(destination), { recursive: true });
@@ -53,9 +53,9 @@ function lstatExists(path) {
 function checkLiveInstall() {
   const installed = spawnSync("pacman", ["-Qq"], { encoding: "utf8" });
   if (installed.error) throw installed.error;
-  if (installed.status !== 0) throw new Error("Could not determine whether cockpit-pacman is package-owned");
-  if (installed.stdout.trim().split("\n").some(name => name === "cockpit-pacman" || name === "cockpit-pacman-git")) {
-    throw new Error("A cockpit-pacman package is installed. Use make devel-install or stage a package with DESTDIR.");
+  if (installed.status !== 0) throw new Error("Could not determine whether cockpit-yay is package-owned");
+  if (installed.stdout.trim().split("\n").some(name => name === "cockpit-yay" || name === "cockpit-yay-git")) {
+    throw new Error("A cockpit-yay package is installed. Use make devel-install or stage a package with DESTDIR.");
   }
 }
 
@@ -70,7 +70,7 @@ function systemInstall([destination, prefix, libexec, backend, dist], checkOnly)
   const stage = live ? "/" : resolve(destination);
   const under = path => join(stage, path.replace(/^\/+/, ""));
   const backendPath = join(libexec, executable);
-  const plugin = under(join(prefix, "share/cockpit/pacman"));
+  const plugin = under(join(prefix, "share/cockpit/yay"));
   for (const file of readdirSync(dist)) {
     if (file !== "manifest.json") installFile(join(dist, file), join(plugin, file), 0o644);
   }
@@ -87,14 +87,14 @@ function systemInstall([destination, prefix, libexec, backend, dist], checkOnly)
 
 function developmentInstall([prefix, backend, dist]) {
   prefix = resolve(prefix);
-  const plugin = join(prefix, "share/cockpit/pacman");
+  const plugin = join(prefix, "share/cockpit/yay");
   if (lstatExists(plugin) && lstatSync(plugin).isSymbolicLink()) {
     if (resolve(dirname(plugin), readlinkSync(plugin)) !== resolve(dist)) {
       throw new Error(`Refusing to replace an unrelated plugin symlink: ${plugin}`);
     }
     unlinkSync(plugin);
   }
-  const backendPath = join(prefix, "libexec/cockpit-pacman", executable);
+  const backendPath = join(prefix, "libexec/cockpit-yay", executable);
   link(backend, backendPath);
   for (const name of readdirSync(dist)) {
     if (name !== "manifest.json") link(join(dist, name), join(plugin, name));

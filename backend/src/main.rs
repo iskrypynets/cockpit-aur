@@ -1,13 +1,13 @@
-use cockpit_pacman_backend::handlers::archive::preflight_downgrade_archive;
-use cockpit_pacman_backend::handlers::downgrade::preflight_downgrade;
-use cockpit_pacman_backend::handlers::mutation::{
+use cockpit_yay_backend::handlers::archive::preflight_downgrade_archive;
+use cockpit_yay_backend::handlers::downgrade::preflight_downgrade;
+use cockpit_yay_backend::handlers::mutation::{
     InstallTarget, preflight_install, preflight_remove, preflight_remove_orphans,
 };
-use cockpit_pacman_backend::handlers::set_install_reason;
+use cockpit_yay_backend::handlers::set_install_reason;
 use std::env;
 use std::time::Duration;
 
-use cockpit_pacman_backend::handlers::{
+use cockpit_yay_backend::handlers::{
     add_ignored, check_lock, check_security, check_updates, clean_cache, delete_mirror_backup,
     delete_repo_backup, downgrade_from_archive, downgrade_package, fetch_mirror_status, fetch_news,
     get_cache_files, get_cache_info, get_dependency_tree, get_grouped_history, get_history,
@@ -23,9 +23,9 @@ use cockpit_pacman_backend::handlers::{
     set_settings, signoff_batch, signoff_list, signoff_revoke, signoff_sign, sync_database,
     sync_package_info, test_mirrors, validate_cache_selection,
 };
-use cockpit_pacman_backend::models::{MirrorEntry, RepoEntry, StructuredError};
-use cockpit_pacman_backend::util::{classify_error, emit_json, shutdown_event_writer};
-use cockpit_pacman_backend::validation::{
+use cockpit_yay_backend::models::{MirrorEntry, RepoEntry, StructuredError};
+use cockpit_yay_backend::util::{classify_error, emit_json, shutdown_event_writer};
+use cockpit_yay_backend::validation::{
     validate_archive_filename, validate_depth, validate_direction, validate_json_payload_size,
     validate_keep_versions, validate_mirror_timeout, validate_mirror_url, validate_optional_depth,
     validate_package_name, validate_pagination, validate_refresh_protocol, validate_refresh_sort,
@@ -37,7 +37,7 @@ fn required_arg(args: &[String], offset: usize) -> anyhow::Result<&str> {
         .map(String::as_str)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| {
-            cockpit_pacman_backend::models::InvalidInput("Missing required argument".into()).into()
+            cockpit_yay_backend::models::InvalidInput("Missing required argument".into()).into()
         })
 }
 
@@ -46,7 +46,7 @@ fn parse_install_target(args: &[String], offset: usize) -> anyhow::Result<Instal
         None | Some("false") => false,
         Some("true") => true,
         Some(_) => {
-            return Err(cockpit_pacman_backend::models::InvalidInput(
+            return Err(cockpit_yay_backend::models::InvalidInput(
                 "Invalid reinstall flag: expected true or false".into(),
             )
             .into());
@@ -458,7 +458,7 @@ fn main() {
 
     // Environment changes must precede signal handlers, runtimes and worker threads.
     unsafe {
-        cockpit_pacman_backend::network::initialize(&args[1]);
+        cockpit_yay_backend::network::initialize(&args[1]);
     }
 
     let result = match args[1].as_str() {
@@ -697,7 +697,7 @@ fn main() {
                 .and_then(|_| validate_cache_selection(mode, &filter_pkgs))
                 .and_then(|_| {
                     if args[1] == "cache-cleanup-preview" {
-                        cockpit_pacman_backend::handlers::cache::preview_cleanup(
+                        cockpit_yay_backend::handlers::cache::preview_cleanup(
                             keep_versions,
                             &filter_pkgs,
                             mode,
@@ -719,7 +719,7 @@ fn main() {
                     filter.as_deref(),
                     search.as_deref(),
                     arg_opt(&args, 6)
-                        .map(|date| cockpit_pacman_backend::handlers::log::parse_until(&date))
+                        .map(|date| cockpit_yay_backend::handlers::log::parse_until(&date))
                         .transpose()?,
                 )
             })
@@ -736,7 +736,7 @@ fn main() {
                     filter.as_deref(),
                     search.as_deref(),
                     arg_opt(&args, 6)
-                        .map(|date| cockpit_pacman_backend::handlers::log::parse_until(&date))
+                        .map(|date| cockpit_yay_backend::handlers::log::parse_until(&date))
                         .transpose()?,
                 )
             })
@@ -977,34 +977,34 @@ fn main() {
         "version" => emit_json(&serde_json::json!({ "version": env!("CARGO_PKG_VERSION") })),
         "undo-repo-save" | "undo-mirror-save" => required_arg(&args, 2).and_then(|timestamp| {
             let timestamp = timestamp.parse::<i64>().map_err(|_| {
-                anyhow::Error::from(cockpit_pacman_backend::models::InvalidInput(
+                anyhow::Error::from(cockpit_yay_backend::models::InvalidInput(
                     "Invalid backup timestamp".into(),
                 ))
             })?;
             let revision = required_arg(&args, 3)?;
             if args[1] == "undo-repo-save" {
-                cockpit_pacman_backend::handlers::repos::undo_repo_save(timestamp, revision)
+                cockpit_yay_backend::handlers::repos::undo_repo_save(timestamp, revision)
             } else {
-                cockpit_pacman_backend::handlers::mirrors::undo_mirror_save(timestamp, revision)
+                cockpit_yay_backend::handlers::mirrors::undo_mirror_save(timestamp, revision)
             }
         }),
         "news-mark-unread" => required_arg(&args, 2)
-            .and_then(cockpit_pacman_backend::handlers::news::mark_news_unread),
+            .and_then(cockpit_yay_backend::handlers::news::mark_news_unread),
         "restore-dismissed" => required_arg(&args, 2).and_then(|kind| {
-            cockpit_pacman_backend::handlers::news::restore_dismissed(
+            cockpit_yay_backend::handlers::news::restore_dismissed(
                 kind,
                 required_arg(&args, 3)?,
                 arg_opt(&args, 4).as_deref(),
             )
         }),
         "receive-key" => required_arg(&args, 2).and_then(|fingerprint| {
-            cockpit_pacman_backend::handlers::keyring::receive_key(
+            cockpit_yay_backend::handlers::keyring::receive_key(
                 fingerprint,
                 arg_opt(&args, 3).as_deref(),
             )
         }),
         "lsign-key" => {
-            required_arg(&args, 2).and_then(cockpit_pacman_backend::handlers::keyring::lsign_key)
+            required_arg(&args, 2).and_then(cockpit_yay_backend::handlers::keyring::lsign_key)
         }
         "list-repos" => list_repos(),
         "save-repos" => {
@@ -1070,7 +1070,7 @@ fn main() {
     shutdown_event_writer(Duration::from_secs(5));
 
     if let Err(e) = result {
-        cockpit_pacman_backend::util::journal_note(&format!("{}: {e:#}", args[1]));
+        cockpit_yay_backend::util::journal_note(&format!("{}: {e:#}", args[1]));
         let emit_envelope = !SYSTEMD_INVOKED.contains(&args[1].as_str());
         if emit_envelope {
             // Every frontend-consumed command reports failure as an envelope, so

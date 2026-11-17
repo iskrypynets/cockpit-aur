@@ -70,10 +70,10 @@ import type {
 export type * from "./bindings";
 
 function backendPath(): string {
-  const configured = cockpit.manifests?.pacman?.config?.backend;
+  const configured = cockpit.manifests?.yay?.config?.backend ?? cockpit.manifests?.pacman?.config?.backend;
   return typeof configured === "string" && configured.startsWith("/")
     ? configured
-    : "/usr/libexec/cockpit-pacman/cockpit-pacman-backend";
+    : "/usr/libexec/cockpit-yay/cockpit-yay-backend";
 }
 
 export type FilterType = "all" | "explicit" | "dependency" | "orphan" | "graph";

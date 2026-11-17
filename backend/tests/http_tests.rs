@@ -1,4 +1,4 @@
-use cockpit_pacman_backend::util::classify_error;
+use cockpit_yay_backend::util::classify_error;
 use std::net::TcpListener;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

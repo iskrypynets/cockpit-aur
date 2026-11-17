@@ -7,7 +7,7 @@
 //!
 //! Run with: cargo test --test contract_tests
 
-use cockpit_pacman_backend::models::{
+use cockpit_yay_backend::models::{
     CacheGroup, CacheInfo, ConflictInfo, DependencyEdge, DependencyNode, DependencyTreeResponse,
     GroupedLogResponse, KeyInfo, KeyringKey, KeyringStatusResponse, LogEntry, LogGroup,
     MirrorEntry, MirrorListResponse, MirrorStatus, MirrorStatusResponse, MirrorTestResult,
@@ -828,7 +828,7 @@ fn keyring_status_response_shape() {
         keys: vec![],
         total: 42,
         master_key_initialized: true,
-        status: cockpit_pacman_backend::models::KeyringState::Ready,
+        status: cockpit_yay_backend::models::KeyringState::Ready,
         warnings: vec![],
     };
     let v = to_json(&response);
@@ -2119,7 +2119,7 @@ fn services_status_two_services_fixture_round_trip() {
 /// has a matching assertion in src/test/contract.test.ts.
 #[test]
 fn error_codes_match_shared_fixture() {
-    use cockpit_pacman_backend::util::{ERROR_CODES, NETWORK_ERROR_KEYWORDS};
+    use cockpit_yay_backend::util::{ERROR_CODES, NETWORK_ERROR_KEYWORDS};
     let fixture: serde_json::Value =
         serde_json::from_str(include_str!("../../test/fixtures/error-codes.json")).unwrap();
 
@@ -2187,7 +2187,7 @@ fn the_backend_never_spawns_a_pacman_binary() {
 /// The frontend derives ErrorCode from these strings; a reword changes what users see.
 #[test]
 fn the_messages_the_frontend_classifies_are_still_produced() {
-    use cockpit_pacman_backend::util::{CheckResult, cancellation_message};
+    use cockpit_yay_backend::util::{CheckResult, cancellation_message};
 
     let fixture = parse_fixture(include_str!(
         "../../test/fixtures/stream-complete-codes.json"
@@ -2222,7 +2222,7 @@ fn the_messages_the_frontend_classifies_are_still_produced() {
             continue;
         }
         assert_eq!(
-            cockpit_pacman_backend::util::failure_code(message, "transaction_failed"),
+            cockpit_yay_backend::util::failure_code(message, "transaction_failed"),
             code,
             "backend and frontend disagree on {message:?}"
         );
@@ -2243,7 +2243,7 @@ fn the_network_keywords_match_the_shared_list() {
         .collect();
 
     assert_eq!(
-        cockpit_pacman_backend::util::NETWORK_ERROR_KEYWORDS,
+        cockpit_yay_backend::util::NETWORK_ERROR_KEYWORDS,
         expected.as_slice(),
         "update test/fixtures/network-error-keywords.json and api.ts together"
     );
