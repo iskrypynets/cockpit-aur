@@ -1,11 +1,13 @@
 pub mod helper;
 pub mod models;
 pub mod rpc;
+pub mod runner;
 pub mod updates;
 
 pub use helper::detect_helper;
 pub use models::{AurHelperInfo, AurPackageDetails, AurPkgbuildResponse};
 pub use rpc::{fetch_pkgbuild, info_aur, search_aur};
+pub use runner::{run_aur_operation, AurOperation};
 pub use updates::find_aur_updates;
 
 use anyhow::{Result, bail};

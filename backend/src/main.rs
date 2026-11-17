@@ -70,6 +70,8 @@ const COMMANDS: &[&str] = &[
     "aur-info",
     "aur-pkgbuild",
     "aur-helper",
+    "aur-install",
+    "aur-upgrade",
     "undo-repo-save",
     "undo-mirror-save",
     "cache-cleanup-preview",
@@ -159,6 +161,10 @@ Commands:
   aur-info NAME          Get package details from AUR
   aur-pkgbuild NAME      Fetch raw PKGBUILD script from AUR for inspection
   aur-helper             Detect installed AUR helper (yay or paru)
+  aur-install NAME [helper] [timeout]
+                         Install an AUR package using yay or paru
+  aur-upgrade [helper] [timeout]
+                         Upgrade installed AUR packages using yay or paru
   undo-repo-save TIMESTAMP REVISION
                          Undo a repository save if it is still current
   undo-mirror-save TIMESTAMP REVISION
@@ -553,6 +559,28 @@ fn main() {
             validate_package_name(&args[2]).and_then(|_| aur_pkgbuild(&args[2]))
         }
         "aur-helper" => aur_helper(),
+        "aur-install" => {
+            if args.len() < 3 {
+                eprintln!("Error: aur-install requires a package name");
+                std::process::exit(1);
+            }
+            let helper = arg_opt(&args, 3);
+            let timeout = args.get(4).and_then(|s| s.parse().ok());
+            cockpit_yay_backend::aur::run_aur_operation(
+                cockpit_yay_backend::aur::AurOperation::Install(&args[2]),
+                helper.as_deref(),
+                timeout,
+            )
+        }
+        "aur-upgrade" => {
+            let helper = arg_opt(&args, 2);
+            let timeout = args.get(3).and_then(|s| s.parse().ok());
+            cockpit_yay_backend::aur::run_aur_operation(
+                cockpit_yay_backend::aur::AurOperation::Upgrade,
+                helper.as_deref(),
+                timeout,
+            )
+        }
         "search" => {
             if args.len() < 3 {
                 eprintln!("Error: search requires a query");

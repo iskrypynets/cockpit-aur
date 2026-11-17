@@ -59,3 +59,25 @@ pub fn detect_helper() -> AurHelperInfo {
         version: None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn helper_info_structure() {
+        let info = detect_helper();
+        if info.available {
+            assert!(info.helper == "yay" || info.helper == "paru");
+            assert!(info.path.is_some());
+        } else {
+            assert_eq!(info.helper, "none");
+            assert!(info.path.is_none());
+        }
+    }
+
+    #[test]
+    fn find_nonexistent_helper() {
+        assert!(find_helper_path("non_existent_helper_xyz_123").is_none());
+    }
+}
