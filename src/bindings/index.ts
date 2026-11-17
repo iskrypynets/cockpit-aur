@@ -3,6 +3,21 @@
 export type AddReason = "target" | "dependency";
 
 /**
+ * Information about installed AUR helper on the host system
+ */
+export type AurHelperInfo = { helper: string, path: string | null, available: boolean, version: string | null, };
+
+/**
+ * Detailed AUR package information exposed to Cockpit frontend
+ */
+export type AurPackageDetails = { id: number, name: string, package_base: string, version: string, description: string | null, url: string | null, num_votes: number, popularity: number, out_of_date: number | null, maintainer: string | null, first_submitted: number | null, last_modified: number | null, depends: Array<string>, make_depends: Array<string>, opt_depends: Array<string>, conflicts: Array<string>, provides: Array<string>, licenses: Array<string>, keywords: Array<string>, installed: boolean, installed_version: string | null, };
+
+/**
+ * Raw PKGBUILD script response for security review
+ */
+export type AurPkgbuildResponse = { name: string, pkgbuild: string, };
+
+/**
  * How a config backup came to exist. Defaults to Manual so backups predating
  * the provenance manifest still classify.
  */

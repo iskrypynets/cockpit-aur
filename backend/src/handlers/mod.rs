@@ -37,7 +37,8 @@ pub use mutation::{
 pub use news::{fetch_news, mark_dismissed, mark_news_read, read_dismissal, read_news_state};
 pub use pacnew::{get_pacnew_status, preview_pacnew, resolve_pacnew};
 pub use query::{
-    check_updates, list_installed, list_orphans, local_package_info, search, sync_package_info,
+    aur_helper, aur_info, aur_pkgbuild, aur_search, check_updates, list_installed, list_orphans,
+    local_package_info, search, sync_package_info,
 };
 pub use reason::set_install_reason;
 pub use reboot::get_reboot_status;

@@ -8,7 +8,8 @@ use std::env;
 use std::time::Duration;
 
 use cockpit_yay_backend::handlers::{
-    add_ignored, check_lock, check_security, check_updates, clean_cache, delete_mirror_backup,
+    add_ignored, aur_helper, aur_info, aur_pkgbuild, aur_search, check_lock, check_security,
+    check_updates, clean_cache, delete_mirror_backup,
     delete_repo_backup, downgrade_from_archive, downgrade_package, fetch_mirror_status, fetch_news,
     get_cache_files, get_cache_info, get_dependency_tree, get_grouped_history, get_history,
     get_pacnew_status, get_reboot_status, get_schedule_config, get_scheduled_runs,
@@ -65,6 +66,10 @@ const SYSTEMD_INVOKED: &[&str] = &["scheduled-run", "scheduled-record-interrupte
 /// (USAGE is checked against it in tests) and the unknown-command suggestion.
 /// Keep in sync with the dispatch match in `main`.
 const COMMANDS: &[&str] = &[
+    "aur-search",
+    "aur-info",
+    "aur-pkgbuild",
+    "aur-helper",
     "undo-repo-save",
     "undo-mirror-save",
     "cache-cleanup-preview",
@@ -147,9 +152,13 @@ const COMMANDS: &[&str] = &[
     "mark-dismissed",
 ];
 
-const USAGE: &str = r#"Usage: cockpit-pacman-backend <command> [args]
+const USAGE: &str = r#"Usage: cockpit-yay-backend <command> [args]
 
 Commands:
+  aur-search QUERY       Search packages in Arch User Repository (AUR)
+  aur-info NAME          Get package details from AUR
+  aur-pkgbuild NAME      Fetch raw PKGBUILD script from AUR for inspection
+  aur-helper             Detect installed AUR helper (yay or paru)
   undo-repo-save TIMESTAMP REVISION
                          Undo a repository save if it is still current
   undo-mirror-save TIMESTAMP REVISION
@@ -522,6 +531,28 @@ fn main() {
             }
             validate_package_name(&args[2]).and_then(|_| local_package_info(&args[2]))
         }
+        "aur-search" => {
+            if args.len() < 3 {
+                eprintln!("Error: aur-search requires a query");
+                std::process::exit(1);
+            }
+            validate_search_query(&args[2]).and_then(|_| aur_search(&args[2]))
+        }
+        "aur-info" => {
+            if args.len() < 3 {
+                eprintln!("Error: aur-info requires a package name");
+                std::process::exit(1);
+            }
+            validate_package_name(&args[2]).and_then(|_| aur_info(&args[2]))
+        }
+        "aur-pkgbuild" => {
+            if args.len() < 3 {
+                eprintln!("Error: aur-pkgbuild requires a package name");
+                std::process::exit(1);
+            }
+            validate_package_name(&args[2]).and_then(|_| aur_pkgbuild(&args[2]))
+        }
+        "aur-helper" => aur_helper(),
         "search" => {
             if args.len() < 3 {
                 eprintln!("Error: search requires a query");

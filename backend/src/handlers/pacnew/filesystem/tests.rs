@@ -18,21 +18,34 @@ fn create_config_dir(path: impl AsRef<Path>) -> io::Result<()> {
     fs::DirBuilder::new().mode(0o700).create(path)
 }
 
-fn set_attr(path: impl AsRef<Path>, name: &str, value: &[u8]) {
+fn try_set_attr(path: impl AsRef<Path>, name: &str, value: &[u8]) -> bool {
     let file = File::open(path).unwrap();
     let name = CString::new(name).unwrap();
-    assert_eq!(
-        unsafe {
-            libc::fsetxattr(
-                file.as_raw_fd(),
-                name.as_ptr(),
-                value.as_ptr().cast(),
-                value.len(),
-                0,
-            )
-        },
-        0
-    );
+    let res = unsafe {
+        libc::fsetxattr(
+            file.as_raw_fd(),
+            name.as_ptr(),
+            value.as_ptr().cast(),
+            value.len(),
+            0,
+        )
+    };
+    if res != 0 {
+        let err = std::io::Error::last_os_error();
+        if err.raw_os_error() == Some(libc::EINVAL)
+            || err.raw_os_error() == Some(libc::ENOTSUP)
+            || err.raw_os_error() == Some(libc::EOPNOTSUPP)
+            || err.raw_os_error() == Some(libc::EPERM)
+        {
+            return false;
+        }
+        panic!("fsetxattr unexpected error: {:?}", err);
+    }
+    true
+}
+
+fn set_attr(path: impl AsRef<Path>, name: &str, value: &[u8]) {
+    assert!(try_set_attr(path, name, value));
 }
 
 fn attrs(path: impl AsRef<Path>) -> Vec<(Vec<u8>, Vec<u8>)> {
@@ -611,7 +624,7 @@ fn acl(entries: &[(u16, u16, u32)]) -> Vec<u8> {
 fn replacement_and_backups_preserve_acl_without_inheriting_other_access() {
     let fixture = Fixture::new("pacnew", Some("old"), "new");
     let undefined = u32::MAX;
-    set_attr(
+    if !try_set_attr(
         fixture.path.join("config"),
         "system.posix_acl_access",
         &acl(&[
@@ -621,8 +634,10 @@ fn replacement_and_backups_preserve_acl_without_inheriting_other_access() {
             (16, 4, undefined),
             (32, 0, undefined),
         ]),
-    );
-    set_attr(
+    ) {
+        return;
+    }
+    if !try_set_attr(
         &fixture.path,
         "system.posix_acl_default",
         &acl(&[
@@ -632,7 +647,9 @@ fn replacement_and_backups_preserve_acl_without_inheriting_other_access() {
             (16, 7, undefined),
             (32, 0, undefined),
         ]),
-    );
+    ) {
+        return;
+    }
     let expected = attrs(fixture.path.join("config"));
     let mut request = fixture.request(PacnewResolution::SaveMerged);
     request.merged_content = Some("merged".into());
@@ -648,7 +665,7 @@ fn named_write_acl_is_rejected_on_current_and_pending_files() {
         let fixture = Fixture::new("pacnew", Some("old"), "new");
         let request = fixture.request(PacnewResolution::KeepCurrent);
         let undefined = u32::MAX;
-        set_attr(
+        if !try_set_attr(
             fixture.path.join(filename),
             "system.posix_acl_access",
             &acl(&[
@@ -658,7 +675,9 @@ fn named_write_acl_is_rejected_on_current_and_pending_files() {
                 (16, 6, undefined),
                 (32, 0, undefined),
             ]),
-        );
+        ) {
+            continue;
+        }
         assert_ne!(
             fs::metadata(fixture.path.join(filename)).unwrap().mode() & 0o020,
             0

@@ -133,11 +133,21 @@ pub fn list_installed(
 pub fn check_updates() -> Result<()> {
     let handle = get_handle()?;
     let (config, degraded) = crate::config::AppConfig::load_degraded()?;
-    let updates = find_available_updates(&handle, &config.ignored_packages);
+    let mut updates = find_available_updates(&handle, &config.ignored_packages);
 
     let mut warnings = Vec::new();
     if degraded {
-        warnings.push("Saved cockpit-pacman package ignores could not be read".to_string());
+        warnings.push("Saved package ignores could not be read".to_string());
+    }
+
+    // Check foreign / AUR packages if network is online
+    if crate::network::require_network().is_ok() {
+        match crate::aur::find_aur_updates(&handle, &config.ignored_packages) {
+            Ok(aur_updates) => updates.extend(aur_updates),
+            Err(e) => {
+                warnings.push(format!("Failed to check AUR updates: {e}"));
+            }
+        }
     }
     let sync_dir = crate::handlers::lock::db_lock_path().with_file_name("sync");
     let response = UpdatesResponse {
@@ -729,6 +739,64 @@ mod search_tests {
             .unwrap();
         assert!(err.chain().any(|c| c.is::<InvalidInput>()));
     }
+}
+
+pub fn aur_search(query: &str) -> Result<()> {
+    let handle = get_handle()?;
+    let localdb = handle.localdb();
+    let packages = crate::aur::search_aur(query)?;
+
+    let results: Vec<SearchResult> = packages
+        .into_iter()
+        .map(|pkg| {
+            let local = localdb.pkg(pkg.name.as_str()).ok();
+            SearchResult {
+                name: pkg.name,
+                version: pkg.version,
+                description: pkg.description,
+                repository: "aur".to_string(),
+                installed: local.is_some(),
+                installed_version: local.map(|l| l.version().to_string()),
+            }
+        })
+        .collect();
+
+    let total = results.len();
+    let total_installed = results.iter().filter(|r| r.installed).count();
+    let total_not_installed = total.saturating_sub(total_installed);
+
+    let response = SearchResponse {
+        results,
+        total,
+        total_installed,
+        total_not_installed,
+        repositories: vec!["aur".to_string()],
+        repository_counts: Some(vec![RepositoryCount {
+            name: "aur".to_string(),
+            count: total,
+        }]),
+    };
+
+    emit_json(&response)
+}
+
+pub fn aur_info(name: &str) -> Result<()> {
+    let details = crate::aur::get_aur_package_details(name)?;
+    emit_json(&details)
+}
+
+pub fn aur_pkgbuild(name: &str) -> Result<()> {
+    let pkgbuild = crate::aur::fetch_pkgbuild(name)?;
+    let response = crate::aur::AurPkgbuildResponse {
+        name: name.to_string(),
+        pkgbuild,
+    };
+    emit_json(&response)
+}
+
+pub fn aur_helper() -> Result<()> {
+    let info = crate::aur::detect_helper();
+    emit_json(&info)
 }
 
 pub(crate) fn oldest_sync_db_mtime<'a>(
