@@ -31,3 +31,6 @@ __pycache__/
 .env
 .env.*
 
+# Local container artifacts
+docker/yay
+

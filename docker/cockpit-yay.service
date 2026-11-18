@@ -1,0 +1,25 @@
+[Unit]
+Description=Cockpit with Yay AUR Integration (Podman Container)
+After=network.target
+
+[Service]
+Type=exec
+Restart=always
+RestartSec=5s
+TimeoutStopSec=15s
+ExecStartPre=-/usr/bin/podman rm -f cockpit-yay
+ExecStart=/usr/bin/podman run --name cockpit-yay \
+    --rm \
+    --stop-timeout 5 \
+    -p 9090:9090 \
+    -v /var/lib/pacman/local:/var/lib/pacman/local:ro \
+    -v /tmp/checkup-db-1000:/tmp/checkup-db-1000:ro \
+    -v /var/lib/pacman/sync:/host/var/lib/pacman/sync:ro \
+    -v /etc/pacman.conf:/etc/pacman.conf:ro \
+    -v /etc/pacman.d:/etc/pacman.d:ro \
+    -v /var/cache/pacman/pkg:/var/cache/pacman/pkg:ro \
+    localhost/cockpit-yay:local
+ExecStop=/usr/bin/podman stop -t 5 cockpit-yay
+
+[Install]
+WantedBy=default.target
