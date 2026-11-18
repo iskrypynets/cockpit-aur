@@ -1,6 +1,7 @@
 {
   "name": "cockpit-aur",
   "version": "0.5.1",
+  "author": "gf <green_forest@ukr.net>",
   "private": true,
   "type": "module",
   "scripts": {

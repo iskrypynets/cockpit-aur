@@ -1,4 +1,4 @@
-# Maintainer: gf <gf@gfnet.cloudns.be>
+# Maintainer: gf <green_forest@ukr.net>
 pkgname=cockpit-aur
 pkgver=0.5.1
 pkgrel=1

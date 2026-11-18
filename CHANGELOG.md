@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.1] - 2026-11-18
+
+### Changed
+- Project renamed to `cockpit-aur` with support for Arch User Repository (AUR) helpers (`yay`, `paru`).
+- Renamed system plugin path to `/usr/share/cockpit/aur` and backend executable to `cockpit-aur-backend`.
+- Updated package maintainer email to `green_forest@ukr.net`.
+
+### Fixed
+- Fixed ESLint / React 19 `set-state-in-effect` warning in `PKGBUILDModal`.
+- Resolved `cargo clippy` warnings in Rust AUR runner and update handlers.
+- Hardened AUR helper execution to safely refuse unprivileged execution when root lacks a delegated user context.
+
+## [0.5.0] - 2026-11-17
+
+### Added
+- Complete AUR integration: package search, package details, and PKGBUILD viewer with syntax highlighting.
+- Execution of AUR helpers (`yay`, `paru`) with streaming log output, cancellation guard, and non-root isolation.
+- Version tracking of foreign packages via AUR RPC metadata.
+- Official `PKGBUILD` for native Arch Linux packaging with `provides` and `conflicts` (`cockpit-pacman`, `cockpit-yay`).
+- Stale service detection and restart prompts after system upgrades.
+
 ## [0.4.1] - 2026-10-20
 
 ### Added

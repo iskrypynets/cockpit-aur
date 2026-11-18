@@ -1,6 +1,7 @@
 [package]
 name = "cockpit-aur-backend"
 version = "0.5.1"
+authors = ["gf <green_forest@ukr.net>"]
 edition = "2024"
 
 [workspace]
