@@ -1,6 +1,6 @@
 use std::process::{Command, Output};
 
-const BIN: &str = env!("CARGO_BIN_EXE_cockpit-yay-backend");
+const BIN: &str = env!("CARGO_BIN_EXE_cockpit-aur-backend");
 
 fn run(args: &[&str]) -> Output {
     Command::new(BIN)

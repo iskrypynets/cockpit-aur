@@ -2,7 +2,7 @@
 //!
 //! Run with: cargo test --test repos_tests
 
-use cockpit_yay_backend::handlers::repos::{
+use cockpit_aur_backend::handlers::repos::{
     Directive, DirectiveKind, PacmanConf, parse_conf, serialize_conf,
 };
 

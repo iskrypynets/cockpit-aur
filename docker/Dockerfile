@@ -28,22 +28,22 @@ RUN mkdir -p /etc/cockpit && cat << 'EOF' > /etc/cockpit/cockpit.conf
 [WebService]
 AllowUnencrypted = true
 Origins = http://localhost:9090 http://127.0.0.1:9090 http://localhost:9091 http://127.0.0.1:9091
-LoginTitle = Cockpit Yay Test
+LoginTitle = Cockpit AUR
 EOF
 
 # Copy yay binary
 COPY docker/yay /usr/bin/yay
 RUN chmod +x /usr/bin/yay
 
-# Copy cockpit-yay backend binary
-RUN mkdir -p /usr/libexec/cockpit-yay
-COPY backend/target/release/cockpit-yay-backend /usr/libexec/cockpit-yay/cockpit-yay-backend
-RUN chmod 755 /usr/libexec/cockpit-yay/cockpit-yay-backend
+# Copy cockpit-aur backend binary
+RUN mkdir -p /usr/libexec/cockpit-aur
+COPY backend/target/release/cockpit-aur-backend /usr/libexec/cockpit-aur/cockpit-aur-backend
+RUN chmod 755 /usr/libexec/cockpit-aur/cockpit-aur-backend
 
-# Copy cockpit-yay frontend package
-RUN mkdir -p /usr/share/cockpit/yay
-COPY dist/ /usr/share/cockpit/yay/
-RUN chmod -R 755 /usr/share/cockpit/yay
+# Copy cockpit-aur frontend package
+RUN mkdir -p /usr/share/cockpit/aur
+COPY dist/ /usr/share/cockpit/aur/
+RUN chmod -R 755 /usr/share/cockpit/aur
 
 # Entrypoint script
 COPY docker/entrypoint.sh /entrypoint.sh

@@ -1,14 +1,14 @@
-# cockpit-yay
+# cockpit-aur
 
-A powerful [Cockpit](https://cockpit-project.org/) plugin for Arch Linux package management featuring direct `alpm.rs` integration, official repositories, and complete **Yay / AUR** support.
+A powerful [Cockpit](https://cockpit-project.org/) plugin for Arch Linux package management featuring direct `alpm.rs` integration, official repositories, and complete **AUR** support (with `yay` and `paru`).
 
-Repository: https://git.gfnet.cloudns.be/gf/cockpit-yay.git
+Repository: https://git.gfnet.cloudns.be/gf/cockpit-aur.git
 
 ---
 
 ## Features
 
-- **Full AUR & Yay Integration**:
+- **Full AUR & Helper Integration**:
   - Search packages across both official Arch Linux repositories (`core`, `extra`, `multilib`) and the AUR.
   - Review PKGBUILDs and install scripts with syntax highlighting and diff viewers before building.
   - Real-time build logs with unprivileged `makepkg` execution for maximum security.
@@ -33,8 +33,8 @@ Repository: https://git.gfnet.cloudns.be/gf/cockpit-yay.git
 Build and install directly using standard Arch tools:
 
 ```bash
-git clone https://git.gfnet.cloudns.be/gf/cockpit-yay.git
-cd cockpit-yay
+git clone https://git.gfnet.cloudns.be/gf/cockpit-aur.git
+cd cockpit-aur
 makepkg -si
 ```
 
@@ -56,12 +56,12 @@ If you prefer running the Cockpit web service in an isolated user container:
 ./docker/build.sh
 
 # Install and start the systemd user service
-cp docker/cockpit-yay.service ~/.config/systemd/user/
+cp docker/cockpit-aur.service ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now cockpit-yay.service
+systemctl --user enable --now cockpit-aur.service
 ```
 
-Access the web interface at **[http://localhost:9090/@localhost/yay](http://localhost:9090/@localhost/yay)** without needing password prompts.
+Access the web interface at **[http://localhost:9090/@localhost/aur](http://localhost:9090/@localhost/aur)** without needing password prompts.
 
 ---
 

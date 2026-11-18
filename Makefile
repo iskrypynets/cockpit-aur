@@ -1,11 +1,11 @@
 VERSION := $(shell sed -n 's/^## \[\([0-9.]*\)\].*/\1/p;T;q' CHANGELOG.md)
 PREFIX = /usr
 DESTDIR =
-LIBEXECDIR = $(PREFIX)/libexec/cockpit-yay
+LIBEXECDIR = $(PREFIX)/libexec/cockpit-aur
 DEVEL_PREFIX = $(HOME)/.local
-TARFILE = cockpit-yay-$(VERSION).tar.xz
+TARFILE = cockpit-aur-$(VERSION).tar.xz
 
-BACKEND_BIN = backend/target/release/cockpit-yay-backend
+BACKEND_BIN = backend/target/release/cockpit-aur-backend
 
 .PHONY: all build build-backend build-frontend generate-types clean install install-check devel-install lint lint-frontend lint-backend test test-frontend test-backend test-e2e test-e2e-ui check dist
 
@@ -33,7 +33,7 @@ clean:
 	rm -rf node_modules dist
 
 dist:
-	git archive --format=tar --prefix=cockpit-yay-$(VERSION)/ HEAD | xz > $(TARFILE)
+	git archive --format=tar --prefix=cockpit-aur-$(VERSION)/ HEAD | xz > $(TARFILE)
 
 install:
 	node tools/install.mjs system "$(DESTDIR)" "$(PREFIX)" "$(LIBEXECDIR)" "$(BACKEND_BIN)" dist

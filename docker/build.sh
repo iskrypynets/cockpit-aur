@@ -22,7 +22,7 @@ if [ ! -f "docker/yay" ]; then
 fi
 
 echo "==> Building backend binary (release)..."
-if [ ! -f "backend/target/release/cockpit-yay-backend" ]; then
+if [ ! -f "backend/target/release/cockpit-aur-backend" ]; then
     (cd backend && cargo build --release --locked)
 fi
 
@@ -34,10 +34,10 @@ if [ ! -f "dist/index.js" ]; then
     cp src/index.html dist/
 fi
 
-echo "==> Building Podman/Docker image cockpit-yay:local ..."
-podman build -t cockpit-yay:local -f docker/Dockerfile .
+echo "==> Building Podman/Docker image cockpit-aur:local ..."
+podman build -t cockpit-aur:local -f docker/Dockerfile .
 
 echo "==> Done! You can run the container with:"
-echo "    systemctl --user restart cockpit-yay.service"
+echo "    systemctl --user restart cockpit-aur.service"
 echo "    or test directly:"
-echo "    podman run --rm -p 9090:9090 localhost/cockpit-yay:local"
+echo "    podman run --rm -p 9090:9090 localhost/cockpit-aur:local"

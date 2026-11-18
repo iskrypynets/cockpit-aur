@@ -1,5 +1,5 @@
 [Unit]
-Description=Cockpit with Yay AUR Integration (Podman Container)
+Description=Cockpit AUR (Podman Container)
 After=network.target
 
 [Service]
@@ -7,8 +7,8 @@ Type=exec
 Restart=always
 RestartSec=3s
 TimeoutStopSec=10s
-ExecStartPre=-/usr/bin/podman rm -f cockpit-yay
-ExecStart=/usr/bin/podman run --name cockpit-yay \
+ExecStartPre=-/usr/bin/podman rm -f cockpit-aur
+ExecStart=/usr/bin/podman run --name cockpit-aur \
     --rm \
     --stop-timeout 5 \
     -p 9090:9090 \
@@ -21,8 +21,8 @@ ExecStart=/usr/bin/podman run --name cockpit-yay \
     -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket \
     -v /run/user/1000/bus:/run/user/1000/bus \
     -e DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus \
-    localhost/cockpit-yay:local
-ExecStop=/usr/bin/podman stop -t 5 cockpit-yay
+    localhost/cockpit-aur:local
+ExecStop=/usr/bin/podman stop -t 5 cockpit-aur
 
 [Install]
 WantedBy=default.target

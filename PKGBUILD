@@ -1,10 +1,10 @@
 # Maintainer: gf <gf@gfnet.cloudns.be>
-pkgname=cockpit-yay
+pkgname=cockpit-aur
 pkgver=0.5.0
 pkgrel=1
-pkgdesc="Cockpit plugin for Arch Linux package management with yay and AUR integration"
+pkgdesc="Cockpit plugin for Arch Linux package management with AUR and yay/paru support"
 arch=('x86_64')
-url="https://git.gfnet.cloudns.be/gf/cockpit-yay"
+url="https://git.gfnet.cloudns.be/gf/cockpit-aur"
 license=('LGPL-2.1-or-later')
 depends=(
     'cockpit>=300'
@@ -22,15 +22,15 @@ optdepends=(
     'yay: for AUR package search, building, and management'
     'paru: alternative AUR helper'
 )
-provides=('cockpit-pacman')
-conflicts=('cockpit-pacman')
+provides=('cockpit-pacman' 'cockpit-yay')
+conflicts=('cockpit-pacman' 'cockpit-yay')
 options=('!strip')
 source=()
 sha256sums=()
 
 build() {
     cd "$startdir"
-    if [ ! -f "backend/target/release/cockpit-yay-backend" ]; then
+    if [ ! -f "backend/target/release/cockpit-aur-backend" ]; then
         cd backend && cargo build --release --locked && cd ..
     fi
     if [ ! -f "dist/index.js" ]; then
@@ -43,5 +43,5 @@ build() {
 
 package() {
     cd "$startdir"
-    node tools/install.mjs system "$pkgdir" "/usr" "/usr/libexec/cockpit-yay" "backend/target/release/cockpit-yay-backend" dist
+    node tools/install.mjs system "$pkgdir" "/usr" "/usr/libexec/cockpit-aur" "backend/target/release/cockpit-aur-backend" dist
 }

@@ -18,8 +18,8 @@ elif [ -d "/host/var/lib/pacman/sync" ]; then
 fi
 
 echo "=========================================================="
-echo " Starting Cockpit Yay on http://localhost:9090"
-echo " Web UI: http://localhost:9090/@localhost/yay"
+echo " Starting Cockpit AUR on http://localhost:9090"
+echo " Web UI: http://localhost:9090/@localhost/aur"
 echo "=========================================================="
 
 exec /usr/lib/cockpit/cockpit-ws --port=9090 --no-tls --local-session=/usr/bin/cockpit-bridge "$@"

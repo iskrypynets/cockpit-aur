@@ -1,6 +1,6 @@
 [package]
-name = "cockpit-yay-backend"
-version = "0.4.1"
+name = "cockpit-aur-backend"
+version = "0.5.0"
 edition = "2024"
 
 [workspace]

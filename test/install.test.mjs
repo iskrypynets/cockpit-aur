@@ -10,18 +10,18 @@ import test from "node:test";
 const installer = resolve(dirname(fileURLToPath(import.meta.url)), "../tools/install.mjs");
 
 function fixture(t) {
-  const directory = mkdtempSync(join(tmpdir(), "cockpit-yay-install-"));
+  const directory = mkdtempSync(join(tmpdir(), "cockpit-aur-install-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const dist = join(directory, "dist");
   mkdirSync(dist);
-  writeFileSync(join(dist, "manifest.json"), JSON.stringify({ version: 0, menu: { yay: { label: "Yay & Pacman" } } }));
+  writeFileSync(join(dist, "manifest.json"), JSON.stringify({ version: 0, menu: { aur: { label: "AUR & Pacman" } } }));
   writeFileSync(join(dist, "index.js"), "fixture bundle");
   writeFileSync(join(dist, "index.html"), "fixture page");
   const backend = join(directory, "backend");
   writeFileSync(backend, "fixture backend");
   const bin = join(directory, "bin");
   mkdirSync(bin);
-  writeFileSync(join(bin, "pacman"), "#!/bin/sh\nprintf 'cockpit-yay\\n'\n");
+  writeFileSync(join(bin, "pacman"), "#!/bin/sh\nprintf 'cockpit-aur\\n'\n");
   chmodSync(join(bin, "pacman"), 0o755);
   const run = (...args) => spawnSync(process.execPath, [installer, ...args], {
     encoding: "utf8", env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
@@ -34,24 +34,24 @@ test("package staging uses one backend path for frontend and scheduled commands"
   const stage = join(f.directory, "stage");
   const umask = process.umask(0o077);
   t.after(() => process.umask(umask));
-  const result = f.run("system", stage, "/usr", "/usr/lib/cockpit-yay", f.backend, f.dist);
+  const result = f.run("system", stage, "/usr", "/usr/lib/cockpit-aur", f.backend, f.dist);
   assert.equal(result.status, 0, result.stderr);
-  for (const directory of ["usr/share/cockpit/yay", "usr/lib/cockpit-yay", "usr/lib/systemd/system"]) {
+  for (const directory of ["usr/share/cockpit/aur", "usr/lib/cockpit-aur", "usr/lib/systemd/system"]) {
     assert.equal(statSync(join(stage, directory)).mode & 0o755, 0o755, directory);
   }
-  const manifest = JSON.parse(readFileSync(join(stage, "usr/share/cockpit/yay/manifest.json"), "utf8"));
-  assert.equal(manifest.config.backend, "/usr/lib/cockpit-yay/cockpit-yay-backend");
+  const manifest = JSON.parse(readFileSync(join(stage, "usr/share/cockpit/aur/manifest.json"), "utf8"));
+  assert.equal(manifest.config.backend, "/usr/lib/cockpit-aur/cockpit-aur-backend");
   const service = readFileSync(join(stage, "usr/lib/systemd/system/cockpit-pacman-scheduled.service"), "utf8");
   assert.ok(service.includes(`ExecStart="${manifest.config.backend}" scheduled-run`));
   assert.ok(service.includes(`ExecStopPost="${manifest.config.backend}" scheduled-record-interrupted`));
   assert.equal(statSync(join(stage, manifest.config.backend)).mode & 0o777, 0o755);
-  assert.equal(statSync(join(stage, "usr/share/cockpit/yay/manifest.json")).mode & 0o777, 0o644);
+  assert.equal(statSync(join(stage, "usr/share/cockpit/aur/manifest.json")).mode & 0o777, 0o644);
 });
 
 test("an installed package prevents an unstaged install before any writes", t => {
   const f = fixture(t);
   const prefix = join(f.directory, "prefix");
-  const result = f.run("system", "", prefix, join(prefix, "libexec/cockpit-yay"), f.backend, f.dist);
+  const result = f.run("system", "", prefix, join(prefix, "libexec/cockpit-aur"), f.backend, f.dist);
   assert.notEqual(result.status, 0);
   assert.equal(existsSync(prefix), false);
 });
@@ -59,7 +59,7 @@ test("an installed package prevents an unstaged install before any writes", t =>
 test("a root DESTDIR cannot bypass the package ownership check", t => {
   const f = fixture(t);
   const prefix = join(f.directory, "prefix");
-  const result = f.run("system", "/", prefix, join(prefix, "libexec/cockpit-yay"), f.backend, f.dist);
+  const result = f.run("system", "/", prefix, join(prefix, "libexec/cockpit-aur"), f.backend, f.dist);
   assert.notEqual(result.status, 0);
   assert.equal(existsSync(prefix), false);
 });
@@ -67,7 +67,7 @@ test("a root DESTDIR cannot bypass the package ownership check", t => {
 test("development installation selects the user backend and leaves system units absent", t => {
   const f = fixture(t);
   const prefix = join(f.directory, "local");
-  const plugin = join(prefix, "share/cockpit/yay");
+  const plugin = join(prefix, "share/cockpit/aur");
   mkdirSync(dirname(plugin), { recursive: true });
   symlinkSync(f.dist, plugin);
   const result = f.run("development", prefix, f.backend, f.dist);
