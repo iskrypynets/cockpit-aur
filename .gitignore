@@ -31,6 +31,12 @@ __pycache__/
 .env
 .env.*
 
+# Arch packaging
+*.pkg.tar.zst
+*.pkg.tar.xz
+pkg/
+src/pkg/
+
 # Local container artifacts
 docker/yay
 
