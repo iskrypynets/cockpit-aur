@@ -76,7 +76,17 @@ pub fn run_aur_operation(
     });
 
     let mut cmd = if is_root {
-        let user = sudo_user.as_deref().unwrap();
+        let user = match sudo_user.as_deref() {
+            Some(u) => u,
+            None => {
+                let msg = "Cannot run AUR helper as root without a non-root user (SUDO_USER/PKEXEC_UID)";
+                emit_event(&StreamEvent::Log {
+                    level: "error".to_string(),
+                    message: msg.to_string(),
+                });
+                return Err(anyhow!("{msg}"));
+            }
+        };
         let mut c = Command::new("runuser");
         c.arg("-u").arg(user).arg("--").arg(&helper_path);
         c
@@ -136,25 +146,21 @@ pub fn run_aur_operation(
 
     let stdout_handle = std::thread::spawn(move || {
         let reader = BufReader::new(stdout);
-        for line in reader.lines() {
-            if let Ok(l) = line {
-                emit_event(&StreamEvent::Log {
-                    level: "info".to_string(),
-                    message: l,
-                });
-            }
+        for l in reader.lines().map_while(Result::ok) {
+            emit_event(&StreamEvent::Log {
+                level: "info".to_string(),
+                message: l,
+            });
         }
     });
 
     let stderr_handle = std::thread::spawn(move || {
         let reader = BufReader::new(stderr);
-        for line in reader.lines() {
-            if let Ok(l) = line {
-                emit_event(&StreamEvent::Log {
-                    level: "warn".to_string(),
-                    message: l,
-                });
-            }
+        for l in reader.lines().map_while(Result::ok) {
+            emit_event(&StreamEvent::Log {
+                level: "warn".to_string(),
+                message: l,
+            });
         }
     });
 

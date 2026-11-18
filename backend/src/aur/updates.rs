@@ -33,8 +33,8 @@ pub fn find_aur_updates(handle: &Alpm, extra_ignored: &[String]) -> Result<Vec<U
         if let Some((local_ver, local_size)) = foreign_pkgs.get(&aur_pkg.name) {
             let ordering = alpm::vercmp(aur_pkg.version.as_str(), local_ver.as_str());
             if ordering == std::cmp::Ordering::Greater {
-                let ignored = handle.ignorepkgs().iter().any(|n| n == &aur_pkg.name)
-                    || extra_ignored.iter().any(|n| n == &aur_pkg.name);
+                let ignored = handle.ignorepkgs().iter().any(|n| *n == aur_pkg.name)
+                    || extra_ignored.contains(&aur_pkg.name);
 
                 updates.push(UpdateInfo {
                     name: aur_pkg.name,

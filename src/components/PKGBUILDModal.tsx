@@ -31,32 +31,29 @@ export const PKGBUILDModal: React.FC<PKGBUILDModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen || !packageName) {
-      setContent(null);
-      setError(null);
-      return;
-    }
+    if (!isOpen || !packageName) return;
 
     let active = true;
-    setLoading(true);
-    setError(null);
-
-    getAurPkgbuild(packageName)
-      .then((res) => {
-        if (active) {
-          setContent(res.pkgbuild);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (active) {
-          setError(err?.message || "Failed to fetch PKGBUILD");
-          setLoading(false);
-        }
-      });
+    Promise.resolve().then(async () => {
+      if (!active) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await getAurPkgbuild(packageName);
+        if (!active) return;
+        setContent(res.pkgbuild);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (active) setLoading(false);
+      }
+    });
 
     return () => {
       active = false;
+      setContent(null);
+      setError(null);
     };
   }, [isOpen, packageName]);
 
