@@ -1,6 +1,6 @@
 # Maintainer: gf <gf@gfnet.cloudns.be>
 pkgname=cockpit-aur
-pkgver=0.5.0
+pkgver=0.5.1
 pkgrel=1
 pkgdesc="Cockpit plugin for Arch Linux package management with AUR and yay/paru support"
 arch=('x86_64')
