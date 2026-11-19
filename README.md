@@ -92,6 +92,12 @@ make devel-install
 
 ---
 
+## Acknowledgments
+
+This project builds upon the foundation of [**cockpit-pacman**](https://github.com/pfeifferj/cockpit-pacman). Many thanks to [Josephine Pfeiffer](https://github.com/pfeifferj) and all contributors of the original project for their work on the core `alpm.rs` integration and Cockpit package management UI.
+
+---
+
 ## License
 
 GPL-3.0-only
