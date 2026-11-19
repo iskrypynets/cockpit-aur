@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.1] - 2026-11-19
+## [0.5.2] - 2026-11-19
 
 ### Added
 - Modernized terminal-style `LogViewer` with semantic syntax highlighting (errors, warnings, successes, AUR build steps, hooks), line counter, live/paused auto-scroll badge, and copy-to-clipboard button.
@@ -8,12 +8,22 @@
 - Explicit `[COCKPIT-AUR]` transaction logging to `/var/log/pacman.log` and stream events for AUR helper runs.
 
 ### Changed
-- Project renamed to `cockpit-aur` with support for Arch User Repository (AUR) helpers (`yay`, `paru`).
-- Renamed system plugin path to `/usr/share/cockpit/aur` and backend executable to `cockpit-aur-backend`.
-- Updated package maintainer email to `green_forest@ukr.net` and official repository URL to `https://github.com/iskrypynets/cockpit-aur`.
+- Migrated official repository URL to GitHub (`https://github.com/iskrypynets/cockpit-aur`) and added acknowledgments to the original `cockpit-pacman` project.
+- Updated Rust dependencies (`sha2` 0.11.1, `tokio` 1.54.1, `serde_json` 1.0.154, `libc` 0.2.191, `rustls` 0.23.46, `flate2` 1.1.11, `html2text` 0.17.4).
+- Updated frontend and dev dependencies (`@patternfly/*` 6.7.0, `react` / `react-dom` 19.3.1, `d3-*` 3.0.1/3.0.2, `@typescript-eslint/*` 8.72.2, `vitest` 5.1.0, `jsdom` 31.0.0, `@playwright/test` 1.65.0).
+- Cleaned up legacy `cockpit-pacman` screenshots, benchmark notes, and updated CI binary verification path.
 
 ### Fixed
 - Fixed missing initiator labels for CLI `pacman`, AUR helper, and untracked transactions in `HistoryView` and `TransactionBanner`.
+
+## [0.5.1] - 2026-11-18
+
+### Changed
+- Project renamed to `cockpit-aur` with support for Arch User Repository (AUR) helpers (`yay`, `paru`).
+- Renamed system plugin path to `/usr/share/cockpit/aur` and backend executable to `cockpit-aur-backend`.
+- Updated package maintainer email to `green_forest@ukr.net`.
+
+### Fixed
 - Fixed ESLint / React 19 `set-state-in-effect` warning in `PKGBUILDModal`.
 - Resolved `cargo clippy` warnings in Rust AUR runner and update handlers.
 - Hardened AUR helper execution to safely refuse unprivileged execution when root lacks a delegated user context.
