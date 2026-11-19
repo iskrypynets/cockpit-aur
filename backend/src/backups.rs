@@ -23,9 +23,19 @@ impl std::fmt::Display for ConfigChanged {
 
 impl std::error::Error for ConfigChanged {}
 
+pub fn hex_encode(bytes: impl AsRef<[u8]>) -> String {
+    let bytes = bytes.as_ref();
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        use std::fmt::Write;
+        let _ = write!(out, "{b:02x}");
+    }
+    out
+}
+
 pub fn file_revision(contents: &[u8]) -> String {
     use sha2::{Digest, Sha256};
-    format!("{:x}", Sha256::digest(contents))
+    hex_encode(Sha256::digest(contents))
 }
 
 pub fn check_revision(contents: &[u8], expected: &str) -> Result<()> {

@@ -345,7 +345,7 @@ impl ConfigRoot {
         let stamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
         let mut replacement = content
             .map(|content| {
-                let key = format!("{:x}", Sha256::digest(selection.current_name().as_bytes()));
+                let key = crate::backups::file_revision(selection.current_name().as_bytes());
                 create_copy(
                     &parent,
                     &format!(".cockpit-pacman-tmp.{}.{stamp}", &key[..16]),
@@ -485,7 +485,7 @@ fn backup_stem(name: &str, stamp: &str) -> String {
     while !name.is_char_boundary(end) {
         end -= 1;
     }
-    let digest = format!("{:x}", Sha256::digest(name.as_bytes()));
+    let digest = crate::backups::file_revision(name.as_bytes());
     format!("{}.{digest}.{stamp}", &name[..end])
 }
 fn open_or_create_directory(directory: &File, name: &str) -> Result<File> {
@@ -601,7 +601,7 @@ impl Pair {
             None => hash.update([0]),
         }
         hash.update(self.pending.revision());
-        format!("{:x}", hash.finalize())
+        crate::backups::hex_encode(hash.finalize())
     }
 }
 fn validate_content(bytes: &[u8]) -> Result<()> {
