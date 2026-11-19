@@ -15,7 +15,10 @@ pub fn find_aur_updates(handle: &Alpm, extra_ignored: &[String]) -> Result<Vec<U
     for pkg in localdb.pkgs() {
         let is_in_syncdb = syncdbs.iter().any(|db| db.pkg(pkg.name()).is_ok());
         if !is_in_syncdb {
-            foreign_pkgs.insert(pkg.name().to_string(), (pkg.version().to_string(), pkg.isize()));
+            foreign_pkgs.insert(
+                pkg.name().to_string(),
+                (pkg.version().to_string(), pkg.isize()),
+            );
         }
     }
 

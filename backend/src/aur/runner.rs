@@ -1,14 +1,12 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-use crate::models::StreamEvent;
-use crate::util::{
-    emit_event, is_cancelled, setup_signal_handler, spawn_cancel_listener,
-};
-use crate::validation::validate_package_name;
 use super::helper::{detect_helper, find_helper_path};
+use crate::models::StreamEvent;
+use crate::util::{emit_event, is_cancelled, setup_signal_handler, spawn_cancel_listener};
+use crate::validation::validate_package_name;
 
 pub enum AurOperation<'a> {
     Install(&'a str),
@@ -49,7 +47,9 @@ pub fn run_aur_operation(
         _ => {
             let detected = detect_helper();
             if !detected.available {
-                let err_msg = "No supported AUR helper (yay or paru) was found installed on the system.".to_string();
+                let err_msg =
+                    "No supported AUR helper (yay or paru) was found installed on the system."
+                        .to_string();
                 emit_event(&StreamEvent::Complete {
                     success: false,
                     message: Some(err_msg.clone()),
@@ -72,7 +72,9 @@ pub fn run_aur_operation(
 
     if let Ok(handle) = crate::alpm::get_handle() {
         let log_msg = match op {
-            AurOperation::Install(pkg) => format!("Running 'cockpit-aur aur-install {pkg}' (cockpit)\n"),
+            AurOperation::Install(pkg) => {
+                format!("Running 'cockpit-aur aur-install {pkg}' (cockpit)\n")
+            }
             AurOperation::Upgrade => "Running 'cockpit-aur aur-upgrade' (cockpit)\n".to_string(),
         };
         let _ = handle.log_action("COCKPIT-AUR", log_msg);
@@ -87,7 +89,8 @@ pub fn run_aur_operation(
         let user = match sudo_user.as_deref() {
             Some(u) => u,
             None => {
-                let msg = "Cannot run AUR helper as root without a non-root user (SUDO_USER/PKEXEC_UID)";
+                let msg =
+                    "Cannot run AUR helper as root without a non-root user (SUDO_USER/PKEXEC_UID)";
                 emit_event(&StreamEvent::Log {
                     level: "error".to_string(),
                     message: msg.to_string(),
@@ -126,19 +129,10 @@ pub fn run_aur_operation(
             ]);
         }
         ("paru", AurOperation::Install(pkg)) => {
-            cmd.args([
-                "-S",
-                pkg,
-                "--noconfirm",
-                "--skipreview",
-            ]);
+            cmd.args(["-S", pkg, "--noconfirm", "--skipreview"]);
         }
         ("paru", AurOperation::Upgrade) => {
-            cmd.args([
-                "-Sua",
-                "--noconfirm",
-                "--skipreview",
-            ]);
+            cmd.args(["-Sua", "--noconfirm", "--skipreview"]);
         }
         _ => return Err(anyhow!("Unsupported AUR helper '{helper_name}'")),
     }
@@ -147,7 +141,9 @@ pub fn run_aur_operation(
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().with_context(|| format!("Failed to spawn {helper_name}"))?;
+    let mut child = cmd
+        .spawn()
+        .with_context(|| format!("Failed to spawn {helper_name}"))?;
 
     let stdout = child.stdout.take().context("Failed to open child stdout")?;
     let stderr = child.stderr.take().context("Failed to open child stderr")?;
@@ -194,7 +190,10 @@ pub fn run_aur_operation(
             let _ = child.kill();
             emit_event(&StreamEvent::Complete {
                 success: false,
-                message: Some(format!("Operation timed out after {} seconds", timeout_duration.as_secs())),
+                message: Some(format!(
+                    "Operation timed out after {} seconds",
+                    timeout_duration.as_secs()
+                )),
                 code: Some("timeout".to_string()),
                 details: None,
             });

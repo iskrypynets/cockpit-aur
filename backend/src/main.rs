@@ -9,20 +9,19 @@ use std::time::Duration;
 
 use cockpit_aur_backend::handlers::{
     add_ignored, aur_helper, aur_info, aur_pkgbuild, aur_search, check_lock, check_security,
-    check_updates, clean_cache, delete_mirror_backup,
-    delete_repo_backup, downgrade_from_archive, downgrade_package, fetch_mirror_status, fetch_news,
-    get_cache_files, get_cache_info, get_dependency_tree, get_grouped_history, get_history,
-    get_pacnew_status, get_reboot_status, get_schedule_config, get_scheduled_runs,
-    get_services_status, get_settings, init_keyring, install_package, keyring_status,
-    list_archive_versions, list_downgrades, list_ignored, list_installed, list_mirror_backups,
-    list_mirrors, list_orphans, list_repo_backups, list_repos, local_package_info, mark_dismissed,
-    mark_news_read, parse_signoff_batch, preflight_upgrade, preview_pacnew,
-    read_credentials_from_stdin, read_dismissal, read_news_state, record_interrupted,
-    refresh_keyring, refresh_mirrors, remove_ignored, remove_orphans, remove_package,
-    remove_stale_lock, resolve_pacnew, restore_mirror_backup, restore_repo_backup, run_upgrade,
-    save_mirrorlist, save_repos, scheduled_run, search, security_info, set_schedule_config,
-    set_settings, signoff_batch, signoff_list, signoff_revoke, signoff_sign, sync_database,
-    sync_package_info, test_mirrors, validate_cache_selection,
+    check_updates, clean_cache, delete_mirror_backup, delete_repo_backup, downgrade_from_archive,
+    downgrade_package, fetch_mirror_status, fetch_news, get_cache_files, get_cache_info,
+    get_dependency_tree, get_grouped_history, get_history, get_pacnew_status, get_reboot_status,
+    get_schedule_config, get_scheduled_runs, get_services_status, get_settings, init_keyring,
+    install_package, keyring_status, list_archive_versions, list_downgrades, list_ignored,
+    list_installed, list_mirror_backups, list_mirrors, list_orphans, list_repo_backups, list_repos,
+    local_package_info, mark_dismissed, mark_news_read, parse_signoff_batch, preflight_upgrade,
+    preview_pacnew, read_credentials_from_stdin, read_dismissal, read_news_state,
+    record_interrupted, refresh_keyring, refresh_mirrors, remove_ignored, remove_orphans,
+    remove_package, remove_stale_lock, resolve_pacnew, restore_mirror_backup, restore_repo_backup,
+    run_upgrade, save_mirrorlist, save_repos, scheduled_run, search, security_info,
+    set_schedule_config, set_settings, signoff_batch, signoff_list, signoff_revoke, signoff_sign,
+    sync_database, sync_package_info, test_mirrors, validate_cache_selection,
 };
 use cockpit_aur_backend::models::{MirrorEntry, RepoEntry, StructuredError};
 use cockpit_aur_backend::util::{classify_error, emit_json, shutdown_event_writer};
@@ -1047,8 +1046,9 @@ fn main() {
                 cockpit_aur_backend::handlers::mirrors::undo_mirror_save(timestamp, revision)
             }
         }),
-        "news-mark-unread" => required_arg(&args, 2)
-            .and_then(cockpit_aur_backend::handlers::news::mark_news_unread),
+        "news-mark-unread" => {
+            required_arg(&args, 2).and_then(cockpit_aur_backend::handlers::news::mark_news_unread)
+        }
         "restore-dismissed" => required_arg(&args, 2).and_then(|kind| {
             cockpit_aur_backend::handlers::news::restore_dismissed(
                 kind,

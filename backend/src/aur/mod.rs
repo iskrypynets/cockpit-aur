@@ -7,12 +7,12 @@ pub mod updates;
 pub use helper::detect_helper;
 pub use models::{AurHelperInfo, AurPackageDetails, AurPkgbuildResponse};
 pub use rpc::{fetch_pkgbuild, info_aur, search_aur};
-pub use runner::{run_aur_operation, AurOperation};
+pub use runner::{AurOperation, run_aur_operation};
 pub use updates::find_aur_updates;
 
-use anyhow::{Result, bail};
 use crate::alpm::get_handle;
 use crate::validation::validate_package_name;
+use anyhow::{Result, bail};
 
 /// Get full details of a single AUR package
 pub fn get_aur_package_details(name: &str) -> Result<AurPackageDetails> {
