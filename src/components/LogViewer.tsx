@@ -102,7 +102,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({
 
   const copyLog = () => {
     if (!log) return;
-    navigator.clipboard.writeText(log).then(() => {
+    window.navigator.clipboard.writeText(log).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {
