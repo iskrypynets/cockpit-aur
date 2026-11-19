@@ -95,12 +95,14 @@ function listTargets(targets: string[], more: string | null): string {
 /** Describes the action recorded in a Cockpit transaction marker. */
 export function describeRun(command: string | null): string {
   const words = (command ?? "").split(" ").filter(Boolean);
-  if (words[0] !== "cockpit-pacman" || words.length < 2) return "Changed packages";
+  if ((words[0] !== "cockpit-pacman" && words[0] !== "cockpit-aur") || words.length < 2) return "Changed packages";
   const [, verb, ...rest] = words;
   const capped = rest.length >= 3 && rest[rest.length - 3] === "and" && rest[rest.length - 1] === "more";
   const targets = capped ? rest.slice(0, -3) : rest;
   const more = capped ? rest[rest.length - 2] : null;
   if (verb === "downgrade" && targets.length === 2) return `Downgraded ${targets[0]} to ${targets[1]}`;
+  if (verb === "aur-install") return targets.length > 0 ? `Installed AUR package ${listTargets(targets, more)}` : "Installed AUR package";
+  if (verb === "aur-upgrade") return "Upgraded AUR packages";
   const head = RUN_VERBS[verb];
   if (!head) return "Changed packages";
   return targets.length > 0 ? `${head} ${listTargets(targets, more)}` : head;

@@ -326,6 +326,10 @@ pub fn log_sync_result<T, E>(handle: &alpm::Alpm, result: &Result<T, E>) {
     });
 }
 
+fn is_cockpit_tag(tag: &str) -> bool {
+    tag == RUN_LOG_PREFIX || tag == "COCKPIT-AUR" || tag == "COCKPIT-PACMAN"
+}
+
 fn newest_sync_in_tail(tail: &[u8], cut: bool) -> Option<i64> {
     let text = String::from_utf8_lossy(tail);
     let mut lines = text.split('\n');
@@ -337,7 +341,7 @@ fn newest_sync_in_tail(tail: &[u8], cut: bool) -> Option<i64> {
             let (ts, rest) = line.strip_prefix('[')?.split_once("] [")?;
             let (caller, msg) = rest.split_once("] ")?;
             let msg = msg.trim_end();
-            let is_sync = caller == RUN_LOG_PREFIX && msg == SYNC_LOG_MESSAGE;
+            let is_sync = is_cockpit_tag(caller) && msg == SYNC_LOG_MESSAGE;
             if !is_sync {
                 return None;
             }
@@ -365,10 +369,11 @@ pub(crate) enum CockpitLine {
 
 pub(crate) fn cockpit_line(line: &str) -> Option<CockpitLine> {
     let (_, rest) = line.strip_prefix('[')?.split_once("] [")?;
-    let msg = rest
-        .strip_prefix(RUN_LOG_PREFIX)?
-        .strip_prefix("] ")?
-        .trim_end();
+    let (tag, msg) = rest.split_once("] ")?;
+    if !is_cockpit_tag(tag) {
+        return None;
+    }
+    let msg = msg.trim_end();
     if msg == RUN_INCOMPLETE_MESSAGE {
         return Some(CockpitLine::Incomplete);
     }
@@ -445,5 +450,29 @@ mod maintenance_tests {
         let completed =
             b"[2026-01-21T10:00:00+0000] [COCKPIT-PACMAN] synchronized package databases\n";
         assert!(newest_sync_in_tail(completed, false).is_some());
+        let completed_aur =
+            b"[2026-01-21T10:00:00+0000] [COCKPIT-AUR] synchronized package databases\n";
+        assert!(newest_sync_in_tail(completed_aur, false).is_some());
+    }
+
+    #[test]
+    fn cockpit_line_parses_both_pacman_and_aur_tags() {
+        let pacman_line = "[2026-01-21T10:00:00+0000] [COCKPIT-PACMAN] Running 'cockpit-pacman upgrade pkg' (cockpit)\n";
+        match cockpit_line(pacman_line) {
+            Some(CockpitLine::Run(cmd, origin)) => {
+                assert_eq!(cmd, "cockpit-pacman upgrade pkg");
+                assert_eq!(origin, TransactionOrigin::Cockpit);
+            }
+            _ => panic!("Expected Run"),
+        }
+
+        let aur_line = "[2026-01-21T10:00:00+0000] [COCKPIT-AUR] Running 'cockpit-aur aur-install visual-studio-code-bin' (cockpit)\n";
+        match cockpit_line(aur_line) {
+            Some(CockpitLine::Run(cmd, origin)) => {
+                assert_eq!(cmd, "cockpit-aur aur-install visual-studio-code-bin");
+                assert_eq!(origin, TransactionOrigin::Cockpit);
+            }
+            _ => panic!("Expected Run"),
+        }
     }
 }

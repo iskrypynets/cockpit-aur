@@ -615,20 +615,43 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
   const showRunInHistory = (run: ScheduledRunEntry) => setScheduleHistoryRun(run.timestamp);
 
   // The logged origin decides; the time-window match only guesses for records without one.
-  const renderOriginLabel = (origin: TransactionOrigin | null, timestamp: string): React.ReactNode => {
-    if (origin === "cockpit") return <Label color="grey" isCompact>From Cockpit</Label>;
-    if (origin === "pacman") return null;
-    const match = scheduledMatch(timestamp, scheduledRuns);
+  const renderOriginLabel = (origin: TransactionOrigin | null, timestamp: string, command?: string | null): React.ReactNode => {
+    if (origin === "cockpit") {
+      return <Label color="blue" isCompact>From Cockpit</Label>;
+    }
     if (origin === "scheduled") {
+      const match = scheduledMatch(timestamp, scheduledRuns);
       return match
         ? <ScheduledRunLabel match={{ ...match, kind: "scheduled" }} onShowInHistory={showRunInHistory} />
         : <Label color="teal" isCompact>Scheduled upgrade</Label>;
     }
-    return match ? <ScheduledRunLabel match={match} onShowInHistory={showRunInHistory} /> : null;
+    if (origin === "pacman") {
+      return <Label color="grey" isCompact>CLI (Pacman)</Label>;
+    }
+
+    // Origin is unrecorded (null): check scheduled run match first
+    const match = scheduledMatch(timestamp, scheduledRuns);
+    if (match) {
+      return <ScheduledRunLabel match={match} onShowInHistory={showRunInHistory} />;
+    }
+    if (command && (command.startsWith("cockpit-aur") || command.startsWith("cockpit-pacman"))) {
+      if (command.includes("(scheduled)")) {
+        return <Label color="teal" isCompact>Scheduled upgrade</Label>;
+      }
+      return <Label color="blue" isCompact>From Cockpit</Label>;
+    }
+    if (command && (command.includes("yay") || command.includes("paru") || command.includes("/.cache/yay") || command.includes("/.cache/paru"))) {
+      const helper = command.includes("paru") ? "paru" : "yay";
+      return <Label color="purple" isCompact>AUR ({helper})</Label>;
+    }
+    if (command && command.startsWith("pacman")) {
+      return <Label color="grey" isCompact>CLI (Pacman)</Label>;
+    }
+    return <Label color="grey" isCompact>CLI / Terminal</Label>;
   };
 
   const renderEntryRow = (entry: LogEntry, index: number, flat = false): React.ReactNode => {
-    const originLabel = flat ? renderOriginLabel(entry.origin, entry.timestamp) : null;
+    const originLabel = flat ? renderOriginLabel(entry.origin, entry.timestamp, entry.command) : null;
     const rowKey = entryKey(entry);
     return (
       <Tr
@@ -1020,7 +1043,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
           <>
             <Accordion asDefinitionList={false} aria-busy={refreshing}>
               {groupedData?.groups.map((group: LogGroup) => {
-                const originLabel = renderOriginLabel(group.origin, group.start_time);
+                const originLabel = renderOriginLabel(group.origin, group.start_time, group.command);
                 return (
                 <AccordionItem key={group.id} isExpanded={expandedGroups.has(group.id)}>
                   <Flex flexWrap={{ default: "nowrap" }} alignItems={{ default: "alignItemsCenter" }} spaceItems={{ default: "spaceItemsNone" }}>
@@ -1044,13 +1067,15 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
                             {group.part && group.parts && (
                               <Label isCompact className="pf-v6-u-ml-sm">Part {group.part} of {group.parts}</Label>
                             )}
-                            {group.command && (group.origin === "cockpit" || group.origin === "scheduled" ? (
+                            {group.command ? (group.origin === "cockpit" || group.origin === "scheduled" || group.command.startsWith("cockpit-") ? (
                               <div style={{ color: "var(--pf-t--global--text--color--subtle)" }}>{describeRun(group.command)}</div>
                             ) : (
                               <div>
                                 <code style={{ color: "var(--pf-t--global--text--color--subtle)" }}>{group.command}</code>
                               </div>
-                            ))}
+                            )) : (
+                              <div style={{ color: "var(--pf-t--global--text--color--subtle)" }}>Transaction</div>
+                            )}
                           </FlexItem>
                           <FlexItem>
                             <Flex spaceItems={{ default: "spaceItemsSm" }}>

@@ -70,9 +70,17 @@ pub fn run_aur_operation(
         AurOperation::Upgrade => format!("Upgrading AUR packages using {helper_name}"),
     };
 
+    if let Ok(handle) = crate::alpm::get_handle() {
+        let log_msg = match op {
+            AurOperation::Install(pkg) => format!("Running 'cockpit-aur aur-install {pkg}' (cockpit)\n"),
+            AurOperation::Upgrade => "Running 'cockpit-aur aur-upgrade' (cockpit)\n".to_string(),
+        };
+        let _ = handle.log_action("COCKPIT-AUR", log_msg);
+    }
+
     emit_event(&StreamEvent::Log {
         level: "info".to_string(),
-        message: op_description,
+        message: format!("[COCKPIT-AUR] {}", op_description),
     });
 
     let mut cmd = if is_root {
