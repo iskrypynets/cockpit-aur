@@ -1,13 +1,19 @@
 # Changelog
 
-## [0.5.1] - 2026-11-18
+## [0.5.1] - 2026-11-19
+
+### Added
+- Modernized terminal-style `LogViewer` with semantic syntax highlighting (errors, warnings, successes, AUR build steps, hooks), line counter, live/paused auto-scroll badge, and copy-to-clipboard button.
+- Initiator identification badges for all transactions in History (`From Cockpit`, `Scheduled upgrade`, `AUR (yay/paru)`, `CLI (Pacman)`, `CLI / Terminal`).
+- Explicit `[COCKPIT-AUR]` transaction logging to `/var/log/pacman.log` and stream events for AUR helper runs.
 
 ### Changed
 - Project renamed to `cockpit-aur` with support for Arch User Repository (AUR) helpers (`yay`, `paru`).
 - Renamed system plugin path to `/usr/share/cockpit/aur` and backend executable to `cockpit-aur-backend`.
-- Updated package maintainer email to `green_forest@ukr.net`.
+- Updated package maintainer email to `green_forest@ukr.net` and official repository URL to `https://github.com/iskrypynets/cockpit-aur`.
 
 ### Fixed
+- Fixed missing initiator labels for CLI `pacman`, AUR helper, and untracked transactions in `HistoryView` and `TransactionBanner`.
 - Fixed ESLint / React 19 `set-state-in-effect` warning in `PKGBUILDModal`.
 - Resolved `cargo clippy` warnings in Rust AUR runner and update handlers.
 - Hardened AUR helper execution to safely refuse unprivileged execution when root lacks a delegated user context.

@@ -2,7 +2,7 @@
 
 A powerful [Cockpit](https://cockpit-project.org/) plugin for Arch Linux package management featuring direct `alpm.rs` integration, official repositories, and complete **AUR** support (with `yay` and `paru`).
 
-Repository: https://git.gfnet.cloudns.be/gf/cockpit-aur.git
+Repository: https://github.com/iskrypynets/cockpit-aur
 
 ---
 
@@ -33,7 +33,7 @@ Repository: https://git.gfnet.cloudns.be/gf/cockpit-aur.git
 Build and install directly using standard Arch tools:
 
 ```bash
-git clone https://git.gfnet.cloudns.be/gf/cockpit-aur.git
+git clone https://github.com/iskrypynets/cockpit-aur.git
 cd cockpit-aur
 makepkg -si
 ```
