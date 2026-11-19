@@ -1,6 +1,6 @@
 # ArchWeb Signoffs
 
-cockpit-pacman can display and manage [ArchWeb package signoffs](https://archlinux.org/packages/signoffs/) directly from the Cockpit UI. The Signoffs tab appears when credentials are stored in the system keyring via the [Secret Service D-Bus API](https://specifications.freedesktop.org/secret-service/latest/) (GNOME Keyring, KeePassXC, etc.).
+cockpit-aur can display and manage [ArchWeb package signoffs](https://archlinux.org/packages/signoffs/) directly from the Cockpit UI. The Signoffs tab appears when credentials are stored in the system keyring via the [Secret Service D-Bus API](https://specifications.freedesktop.org/secret-service/latest/) (GNOME Keyring, KeePassXC, etc.).
 
 ## Setup
 

@@ -118,7 +118,7 @@ jobs:
         working-directory: backend
         run: |
           cargo build --release --locked
-          ldd target/release/cockpit-pacman-backend | grep -E 'libcurl\.so.*=> /usr/lib/'
+          ldd target/release/cockpit-aur-backend | grep -E 'libcurl\.so.*=> /usr/lib/'
 
   browser:
     name: Browser integration
