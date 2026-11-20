@@ -7,8 +7,6 @@ import {
   Dropdown,
   DropdownItem,
   DropdownList,
-  Flex,
-  FlexItem,
 } from "@patternfly/react-core";
 import { UpdateInfo, KeyringStatusResponse, formatSize, getAurHelper, type AurHelperInfo } from "../api";
 import { StatBox } from "./StatBox";
@@ -97,91 +95,84 @@ export const SystemOverviewCard: React.FC<{
           {securityToggleError}
         </Alert>
       )}
-      <Flex spaceItems={{ default: "spaceItemsLg" }}>
-        <FlexItem>
-          <StatBox
-            label="Updates"
-            value={(updates.length).toLocaleString()}
-            color={updates.length > 0 ? "danger" : "success"}
-          />
-        </FlexItem>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
+        {settingsMenu}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+          gap: "0.75rem",
+          alignItems: "stretch",
+        }}
+      >
+        <StatBox
+          label="Updates"
+          value={(updates.length).toLocaleString()}
+          color={updates.length > 0 ? "danger" : "success"}
+        />
         {securityEnabled && (
-          <FlexItem>
-            <StatBox
-              label={securityFilterActive ? "Show all" : "Security"}
-              value={
-                securityFilterActive
-                  ? (updates.length).toLocaleString()
-                  : securityLoading || securityUnavailable
-                    ? "-"
-                    : (securityCount).toLocaleString()
-              }
-              color={!securityFilterActive && !securityUnavailable && securityCount > 0 ? "danger" : "default"}
-              isLoading={securityLoading}
-              onClick={securityFilterable ? onToggleSecurityFilter : undefined}
-              isActive={securityFilterable ? securityFilterActive : undefined}
-              ariaLabel={securityFilterActive ? "Show all updates" : "Filter to security updates"}
-            />
-          </FlexItem>
-        )}
-        <FlexItem>
           <StatBox
-            label="Orphans"
-            value={orphanCount !== null ? (orphanCount).toLocaleString() : "-"}
-            color={orphanCount && orphanCount > 0 ? "warning" : "default"}
-            isLoading={summaryLoading}
-            onClick={onViewOrphans}
-            ariaLabel={drillName(orphanCount !== null && !summaryLoading ? plural(orphanCount, "orphan") : "Orphans", "view orphaned packages")}
-            description="Packages installed as dependencies that are no longer required by any other package. Usually safe to remove."
-          />
-        </FlexItem>
-        <FlexItem>
-          <StatBox
-            label="Cache"
-            value={cacheSize !== null ? formatSize(cacheSize) : "-"}
-            isLoading={summaryLoading}
-            onClick={onViewCache}
-            ariaLabel={drillName(cacheSize !== null && !summaryLoading ? `${formatSize(cacheSize)} in package cache` : "Package cache", "view package cache")}
-          />
-        </FlexItem>
-        <FlexItem>
-          <StatBox
-            label="Keyring"
-            value={keyringStatus ? plural(keyringStatus.total, "key") : "-"}
-            color={keyringStatus?.warnings.length ? "warning" : "default"}
-            isLoading={summaryLoading}
-            onClick={onViewKeyring}
-            ariaLabel={drillName(keyringStatus && !summaryLoading ? `${plural(keyringStatus.total, "key")} in keyring` : "Keyring", "view keyring")}
-          />
-        </FlexItem>
-        {pendingSignoffs != null && onViewSignoffs && (
-          <FlexItem>
-            <StatBox
-              label="To sign off"
-              value={(pendingSignoffs).toLocaleString()}
-              color={pendingSignoffs > 0 ? "info" : "default"}
-              onClick={() => onViewSignoffs(SIGNOFF_TILE_FILTER)}
-              ariaLabel={drillName(`${plural(pendingSignoffs, "package")} to sign off`, "view package signoffs")}
-              description="Installed packages from [testing] repositories that are still pending and that you have not signed off. Package maintainers sign off tested packages before they move to stable."
-            />
-          </FlexItem>
-        )}
-        <FlexItem>
-          <StatBox
-            label="AUR Helper"
-            value={aurHelper ? (aurHelper.available ? aurHelper.helper : "none") : "…"}
-            color={aurHelper?.available ? "success" : "default"}
-            description={
-              aurHelper?.available
-                ? `${aurHelper.helper} detected at ${aurHelper.path} (${aurHelper.version || "active"})`
-                : "Neither yay nor paru was detected in PATH. Install yay or paru to enable AUR package management."
+            label={securityFilterActive ? "Show all" : "Security"}
+            value={
+              securityFilterActive
+                ? (updates.length).toLocaleString()
+                : securityLoading || securityUnavailable
+                  ? "-"
+                  : (securityCount).toLocaleString()
             }
+            color={!securityFilterActive && !securityUnavailable && securityCount > 0 ? "danger" : "default"}
+            isLoading={securityLoading}
+            onClick={securityFilterable ? onToggleSecurityFilter : undefined}
+            isActive={securityFilterable ? securityFilterActive : undefined}
+            ariaLabel={securityFilterActive ? "Show all updates" : "Filter to security updates"}
           />
-        </FlexItem>
-        <FlexItem align={{ default: "alignRight" }}>
-          {settingsMenu}
-        </FlexItem>
-      </Flex>
+        )}
+        <StatBox
+          label="Orphans"
+          value={orphanCount !== null ? (orphanCount).toLocaleString() : "-"}
+          color={orphanCount && orphanCount > 0 ? "warning" : "default"}
+          isLoading={summaryLoading}
+          onClick={onViewOrphans}
+          ariaLabel={drillName(orphanCount !== null && !summaryLoading ? plural(orphanCount, "orphan") : "Orphans", "view orphaned packages")}
+          description="Packages installed as dependencies that are no longer required by any other package. Usually safe to remove."
+        />
+        <StatBox
+          label="Cache"
+          value={cacheSize !== null ? formatSize(cacheSize) : "-"}
+          isLoading={summaryLoading}
+          onClick={onViewCache}
+          ariaLabel={drillName(cacheSize !== null && !summaryLoading ? `${formatSize(cacheSize)} in package cache` : "Package cache", "view package cache")}
+        />
+        <StatBox
+          label="Keyring"
+          value={keyringStatus ? plural(keyringStatus.total, "key") : "-"}
+          color={keyringStatus?.warnings.length ? "warning" : "default"}
+          isLoading={summaryLoading}
+          onClick={onViewKeyring}
+          ariaLabel={drillName(keyringStatus && !summaryLoading ? `${plural(keyringStatus.total, "key")} in keyring` : "Keyring", "view keyring")}
+        />
+        {pendingSignoffs != null && onViewSignoffs && (
+          <StatBox
+            label="To sign off"
+            value={(pendingSignoffs).toLocaleString()}
+            color={pendingSignoffs > 0 ? "info" : "default"}
+            onClick={() => onViewSignoffs(SIGNOFF_TILE_FILTER)}
+            ariaLabel={drillName(`${plural(pendingSignoffs, "package")} to sign off`, "view package signoffs")}
+            description="Installed packages from [testing] repositories that are still pending and that you have not signed off. Package maintainers sign off tested packages before they move to stable."
+          />
+        )}
+        <StatBox
+          label="AUR Helper"
+          value={aurHelper ? (aurHelper.available ? aurHelper.helper : "none") : "…"}
+          color={aurHelper?.available ? "success" : "default"}
+          description={
+            aurHelper?.available
+              ? `${aurHelper.helper} detected at ${aurHelper.path} (${aurHelper.version || "active"})`
+              : "Neither yay nor paru was detected in PATH. Install yay or paru to enable AUR package management."
+          }
+        />
+      </div>
     </CardBody>
   </Card>
   );

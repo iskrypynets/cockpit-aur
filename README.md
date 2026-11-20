@@ -84,6 +84,13 @@ make devel-install
 
 ---
 
+## Remote & Mobile Tips
+
+- **Session Idle Timeouts**: To prevent Cockpit from frequently dropping sessions when switching mobile apps or locking the screen, set `IdleTimeout=0` in `/etc/cockpit/cockpit.conf` and adjust sudo timeout in `/etc/sudoers.d/`. See [docs/troubleshooting.md](docs/troubleshooting.md) for complete details.
+- **Terminal Output Copying**: When using Cockpit on a phone or tablet, use the floating **Copy** button in **Tools → Terminal** to quickly copy command output or active selections to the clipboard.
+
+---
+
 ## Security Guarantees
 
 - **Unprivileged AUR builds**: `makepkg` is always executed under an unprivileged user account. Root access is strictly rejected for AUR builds.

@@ -26,9 +26,15 @@ export interface StatBoxProps {
 
 const boxStyle: React.CSSProperties = {
   textAlign: "center",
-  padding: "0.75rem 1.5rem",
+  padding: "0.75rem 1rem",
   background: "var(--pf-t--global--background--color--secondary--default)",
   borderRadius: "6px",
+  width: "100%",
+  height: "100%",
+  boxSizing: "border-box",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
 };
 
 export const StatBox: React.FC<StatBoxProps> = ({ value, label, color = "default", isLoading, onClick, ariaLabel, isActive, description }) => {
@@ -62,7 +68,6 @@ export const StatBox: React.FC<StatBoxProps> = ({ value, label, color = "default
       type="button"
       style={{
         ...boxStyle,
-        display: "block",
         border: 0,
         font: "inherit",
         color: "inherit",

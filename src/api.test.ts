@@ -617,7 +617,7 @@ describe("runUpgrade", () => {
     mockProc._emit(JSON.stringify(logEvent) + "\n");
 
     expect(callbacks.onEvent).toHaveBeenCalledWith(logEvent);
-    expect(callbacks.onData).toHaveBeenCalledWith("[info] Starting upgrade\n");
+    expect(callbacks.onData).toHaveBeenCalledWith("[ALPM] Starting upgrade\n");
   });
 
   it("processes progress events", () => {
@@ -644,7 +644,7 @@ describe("runUpgrade", () => {
     mockProc._emit(JSON.stringify(progressEvent) + "\n");
 
     expect(callbacks.onEvent).toHaveBeenCalledWith(progressEvent);
-    expect(callbacks.onData).toHaveBeenCalledWith("[upgrade_start] linux 20%\n");
+    expect(callbacks.onData).toHaveBeenCalledWith("[ALPM] [upgrade_start] linux 20%\n");
   });
 
   it("handles buffered incomplete lines", () => {
@@ -704,7 +704,7 @@ describe("runUpgrade", () => {
 
     mockProc._emit("not valid json\n");
 
-    expect(callbacks.onData).toHaveBeenCalledWith("not valid json\n");
+    expect(callbacks.onData).toHaveBeenCalledWith("[PACMAN] not valid json\n");
   });
 
   it("calls onError when process fails", () => {
@@ -914,7 +914,7 @@ describe("syncDatabase", () => {
     mockProc._emit(JSON.stringify(downloadEvent) + "\n");
 
     expect(callbacks.onEvent).toHaveBeenCalledWith(downloadEvent);
-    expect(callbacks.onData).toHaveBeenCalledWith("Downloading core.db: 50%\n");
+    expect(callbacks.onData).toHaveBeenCalledWith("[ALPM] Downloading core.db: 50%\n");
   });
 
   it("handles download completed events", () => {
@@ -936,7 +936,7 @@ describe("syncDatabase", () => {
     };
     mockProc._emit(JSON.stringify(downloadEvent) + "\n");
 
-    expect(callbacks.onData).toHaveBeenCalledWith("Downloaded core.db\n");
+    expect(callbacks.onData).toHaveBeenCalledWith("[ALPM] Downloaded core.db\n");
   });
 });
 

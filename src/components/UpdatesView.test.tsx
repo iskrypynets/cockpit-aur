@@ -341,8 +341,11 @@ describe("UpdatesView", () => {
 
       expect(screen.queryByText("pgpkg0055")).not.toBeInTheDocument();
 
+      // Top and bottom paginations are both rendered
+      expect(screen.getAllByRole("navigation", { name: /pagination/i }).length).toBe(2);
+
       await act(async () => {
-        fireEvent.click(screen.getByLabelText("Go to next page"));
+        fireEvent.click(screen.getAllByLabelText("Go to next page")[0]);
       });
 
       await waitFor(() => expect(screen.getByText("pgpkg0055")).toBeInTheDocument());
@@ -375,7 +378,7 @@ describe("UpdatesView", () => {
       await waitFor(() => expect(screen.getByText("pgpkg0000")).toBeInTheDocument());
 
       await act(async () => {
-        fireEvent.click(screen.getByLabelText("Go to next page"));
+        fireEvent.click(screen.getAllByLabelText("Go to next page")[0]);
       });
       await waitFor(() => expect(screen.getByText("pgpkg0055")).toBeInTheDocument());
 
@@ -2264,7 +2267,7 @@ describe("UpdatesView", () => {
       });
 
       await act(async () => {
-        fireEvent.click(screen.getByLabelText("Go to next page"));
+        fireEvent.click(screen.getAllByLabelText("Go to next page")[0]);
       });
       await waitFor(() => {
         expect(screen.queryByText(updates[0].name)).not.toBeInTheDocument();
@@ -4759,7 +4762,7 @@ describe("UpdatesView", () => {
       render(<UpdatesView />);
       await screen.findByText("drpkg0000");
       await act(async () => {
-        fireEvent.click(screen.getByLabelText("Go to next page"));
+        fireEvent.click(screen.getAllByLabelText("Go to next page")[0]);
       });
       await screen.findByText("drpkg0055");
       await act(async () => {

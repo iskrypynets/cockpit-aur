@@ -21,9 +21,24 @@ pub fn setup_log_cb(handle: &mut Alpm) {
         if !worth_emitting(level) {
             return;
         }
+        let diag = crate::network::native_diagnostic(msg.trim());
+        let diag_clean = diag
+            .strip_prefix("warning: ")
+            .or_else(|| diag.strip_prefix("error: "))
+            .unwrap_or(&diag);
+        let tag = match level {
+            LogLevel::ERROR => "error",
+            LogLevel::WARNING => "warning",
+            _ => "",
+        };
+        let formatted = if tag.is_empty() {
+            format!("[ALPM] {diag}")
+        } else {
+            format!("[ALPM] {tag}: {diag_clean}")
+        };
         emit_event(&StreamEvent::Log {
             level: log_level_to_string(level).to_string(),
-            message: crate::network::native_diagnostic(msg.trim()),
+            message: formatted,
         });
     });
 }

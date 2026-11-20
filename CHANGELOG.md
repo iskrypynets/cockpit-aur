@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.3] - 2026-11-20
+
+### Added
+- Floating "Copy" button in Cockpit Tools Terminal (`terminal.html`) with support for copying active text selection or full console output, including touch text-selection styles.
+- Auto-sync to both `$HOME/.local/share/cockpit/aur` and `/usr/share/cockpit/aur` in `deploy.sh` to prevent user directory overrides from shadowing system updates.
+- Documentation and recommendations for avoiding Cockpit session timeouts and preserving sudo administrative access during remote/mobile sessions.
+
+### Fixed
+- Fixed pagination controls (`CompactPagination`) being completely invisible on mobile and narrow screens (< 768px) due to PatternFly v6 CSS defaults.
+- Fixed updates table layout squishing on mobile: migrated to `table-layout: auto`, added word wrapping for long package names, and allowed version arrows to wrap cleanly.
+- Fixed inconsistent widths and chaotic wrapping of system overview tiles by using a responsive uniform CSS Grid (`minmax(130px, 1fr)`).
+- Added cache-busting query strings to `index.html` to ensure immediate browser reload of bundled JS/CSS assets without requiring manual cache clearing.
+
 ## [0.5.2] - 2026-11-19
 
 ### Added

@@ -93,7 +93,7 @@ pub fn run_aur_operation(
                     "Cannot run AUR helper as root without a non-root user (SUDO_USER/PKEXEC_UID)";
                 emit_event(&StreamEvent::Log {
                     level: "error".to_string(),
-                    message: msg.to_string(),
+                    message: format!("[COCKPIT-AUR] error: {msg}"),
                 });
                 return Err(anyhow!("{msg}"));
             }
@@ -153,7 +153,7 @@ pub fn run_aur_operation(
         for l in reader.lines().map_while(Result::ok) {
             emit_event(&StreamEvent::Log {
                 level: "info".to_string(),
-                message: l,
+                message: format!("[AUR] {l}"),
             });
         }
     });
@@ -163,7 +163,7 @@ pub fn run_aur_operation(
         for l in reader.lines().map_while(Result::ok) {
             emit_event(&StreamEvent::Log {
                 level: "warn".to_string(),
-                message: l,
+                message: format!("[AUR] {l}"),
             });
         }
     });

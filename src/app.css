@@ -1,0 +1,30 @@
+/* Custom application overrides for Cockpit AUR plugin */
+
+/* Ensure pagination controls and page menu remain visible on mobile and compact screens */
+.pf-v6-c-pagination {
+  --pf-v6-c-pagination__page-menu--Display: inline-block !important;
+  --pf-v6-c-pagination__nav--Display: inline-flex !important;
+}
+
+.pf-v6-c-pagination .pf-v6-c-pagination__page-menu {
+  display: inline-block !important;
+}
+
+.pf-v6-c-pagination .pf-v6-c-pagination__nav {
+  display: inline-flex !important;
+}
+
+/* Ensure table columns adapt to their content and do not artificially squish columns */
+.pf-v6-c-table {
+  table-layout: auto !important;
+  min-width: 100%;
+}
+
+/* Ensure buttons in table cells wrap long package names properly */
+.pf-v6-c-table td .pf-v6-c-button.pf-m-link {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+

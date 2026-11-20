@@ -146,5 +146,42 @@ The plugin reads as the logged-in user and asks for administrator access only
 to change something. A view that stopped working usually means the session has
 not escalated: use the administrative access button in Cockpit's header.
 
+## Cockpit Session Times Out or Locks Frequently
+
+If Cockpit repeatedly asks to re-authenticate or loses administrative privileges (especially on mobile devices when switching apps or locking the screen):
+
+1. **Disable Idle Session Timeout**:
+   By default or under mobile browser sleep, Cockpit may log the session out when the WebSocket is paused. You can disable the idle logout by creating `/etc/cockpit/cockpit.conf`:
+   ```ini
+   [Session]
+   IdleTimeout=0
+
+   [WebService]
+   MaxConcurrentConnections=500
+   ```
+   Then reload Cockpit:
+   ```bash
+   sudo systemctl try-restart cockpit.socket cockpit.service
+   ```
+
+2. **Extend Sudo Administrative Access Timeout**:
+   Standard `sudo` expires credential cache after 5 minutes. To avoid constantly re-authenticating for package actions:
+   Create `/etc/sudoers.d/cockpit-timeout`:
+   ```sudoers
+   Defaults:gf timestamp_timeout=120
+   ```
+   Ensure file permissions: `chmod 0440 /etc/sudoers.d/cockpit-timeout`.
+
+3. **User Plugin Override Precedence**:
+   Note that Cockpit prioritizes user plugins located in `$HOME/.local/share/cockpit/` over system plugins in `/usr/share/cockpit/`. If an older build exists in `~/.local/share/cockpit/aur/`, it will shadow the `/usr/share/cockpit/aur/` build. Use `./deploy.sh` to keep both directories in sync.
+
+## Terminal Output Copying on Mobile
+
+In Cockpit's **Tools → Terminal** (`systemd/terminal.html`), mobile devices and touch screens often cannot select terminal text natively due to canvas/xterm event capturing.
+- Use the floating **Copy** button at the top right of the terminal:
+  - If any text is selected, it copies the selection.
+  - If nothing is selected, it copies the entire terminal output.
+  - Shows visual confirmation ("Copied!") when successful.
+
 Uninstalling keeps `/etc/cockpit-pacman`, `/var/log/cockpit-pacman` and the
 backups. Remove them by hand if you want them gone.

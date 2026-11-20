@@ -30,6 +30,8 @@ __pycache__/
 # Secrets & local env
 .env
 .env.*
+fix_wifi_and_sleep.sh
+prepare_reboot.sh
 
 # Arch packaging
 *.pkg.tar.zst

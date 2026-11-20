@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { LogViewer } from "./LogViewer";
 
@@ -66,5 +66,98 @@ describe("LogViewer", () => {
     sizeLog(log, SCROLL_HEIGHT + 400);
     rerender(<LogViewer log={"a\nb\nc"} />);
     expect(log.scrollTop).toBe(SCROLL_HEIGHT + 400);
+  });
+
+  it("copies log to clipboard and displays Copied state", async () => {
+    let clipboardText = "";
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          clipboardText = text;
+        },
+      },
+    });
+    // Set isSecureContext
+    Object.defineProperty(window, "isSecureContext", {
+      configurable: true,
+      value: true,
+    });
+
+    render(<LogViewer log="sample log output" />);
+    const copyBtn = screen.getByRole("button", { name: "Copy log" });
+    expect(copyBtn).toBeInTheDocument();
+
+    fireEvent.click(copyBtn);
+    expect(await screen.findByText("Copied")).toBeInTheDocument();
+    expect(clipboardText).toBe("sample log output");
+  });
+
+  it("falls back to execCommand copy when clipboard API is unavailable", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: undefined,
+    });
+    let execCommandCalled = false;
+    let commandArg = "";
+    document.execCommand = (cmd: string) => {
+      execCommandCalled = true;
+      commandArg = cmd;
+      return true;
+    };
+
+    render(<LogViewer log="fallback log output" />);
+    const copyBtn = screen.getByRole("button", { name: "Copy log" });
+
+    fireEvent.click(copyBtn);
+    expect(await screen.findByText("Copied")).toBeInTheDocument();
+    expect(execCommandCalled).toBe(true);
+    expect(commandArg).toBe("copy");
+  });
+
+  it("downloads log as txt file on clicking Download button", () => {
+    let clickedHref = "";
+    let downloadAttr = "";
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    URL.createObjectURL = () => "blob:test";
+    URL.revokeObjectURL = () => {};
+
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      clickedHref = this.href;
+      downloadAttr = this.download;
+    });
+
+    render(<LogViewer log="downloadable log" />);
+    const downloadBtn = screen.getByRole("button", { name: "Download log" });
+    fireEvent.click(downloadBtn);
+
+    expect(clickSpy).toHaveBeenCalled();
+    expect(clickedHref).toBe("blob:test");
+    expect(downloadAttr).toMatch(/^cockpit-aur-log-.*\.txt$/);
+
+    clickSpy.mockRestore();
+    URL.createObjectURL = originalCreateObjectURL;
+    URL.revokeObjectURL = originalRevokeObjectURL;
+  });
+
+  it("shares log via navigator.share when available", async () => {
+    let sharedPayload: any = null;
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (payload: any) => {
+        sharedPayload = payload;
+      },
+    });
+
+    render(<LogViewer log="shareable log" aria-label="Build Output" />);
+    const shareBtn = screen.getByRole("button", { name: "Share log" });
+    expect(shareBtn).toBeInTheDocument();
+
+    fireEvent.click(shareBtn);
+    expect(sharedPayload).toEqual({
+      title: "Build Output",
+      text: "shareable log",
+    });
   });
 });

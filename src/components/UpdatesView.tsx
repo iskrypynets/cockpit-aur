@@ -759,6 +759,12 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
     setPage(1);
   }, [searchFilter, repoFilter, securityFilterOn, activeSortKey, activeSortDirection, setPage]);
 
+  useEffect(() => {
+    if (page > 1 && (page - 1) * perPage >= sortedUpdates.length) {
+      setPage(Math.max(1, Math.ceil(sortedUpdates.length / perPage)));
+    }
+  }, [sortedUpdates.length, page, perPage, setPage]);
+
   const pagedUpdates = useMemo(
     () => sortedUpdates.slice(offset, offset + perPage),
     [sortedUpdates, offset, perPage]
@@ -2827,11 +2833,11 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
             </Content>
           </CardHeader>
         </div>
-        <CardBody>
+        <CardBody style={{ overflowX: "hidden" }}>
         {withDetails(
         <>
-          <Toolbar className="pf-v6-u-px-0">
-            <ToolbarContent>
+          <Toolbar className="pf-v6-u-px-0" style={{ rowGap: "0.5rem" }}>
+            <ToolbarContent style={{ flexWrap: "wrap", rowGap: "0.5rem" }}>
               <ToolbarItem>
                 <SearchInput
                   placeholder="Filter updates…"
@@ -2885,6 +2891,17 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
                   </Select>
                 </ToolbarItem>
               )}
+              <ToolbarItem variant="pagination" align={{ default: "alignEnd" }}>
+                <CompactPagination
+                  itemCount={sortedUpdates.length}
+                  page={page}
+                  perPage={perPage}
+                  onSetPage={onSetPage}
+                  onPerPageSelect={onPerPageSelect}
+                />
+              </ToolbarItem>
+            </ToolbarContent>
+            <ToolbarContent style={{ flexWrap: "wrap", rowGap: "0.5rem" }}>
               <ToolbarItem>
                 <GatedButton
                   gate={scheduleGate}
@@ -2920,10 +2937,11 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
             </ToolbarContent>
           </Toolbar>
 
-        <Table aria-label="Available updates" variant="compact" ref={tableRef}>
+        <div style={{ overflowX: "auto", width: "100%", WebkitOverflowScrolling: "touch" }}>
+        <Table aria-label="Available updates" isStriped variant="compact" ref={tableRef} style={{ tableLayout: "auto", minWidth: "100%" }}>
           <Thead>
             <Tr>
-              <Th screenReaderText="Select">
+              <Th screenReaderText="Select" style={{ width: "40px" }}>
                 <Checkbox
                   id="select-all-updates"
                   isChecked={areAllSelected}
@@ -2931,13 +2949,14 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
                   aria-label={`Select all ${plural(selectableCount, "update")}`}
                 />
               </Th>
-              <Th sort={getSortParams("name")}>Package</Th>
-              <Th sort={getSortParams("repo")}>Repository</Th>
-              <Th>Version</Th>
-              <Th sort={getSortParams("download")}>Download</Th>
-              <Th sort={getSortParams("installed")}>Installed</Th>
+              <Th sort={getSortParams("name")} style={{ minWidth: "140px" }}>Package</Th>
+              <Th sort={getSortParams("repo")} style={{ width: "90px", whiteSpace: "nowrap" }}>Repository</Th>
+              <Th style={{ minWidth: "160px" }}>Version</Th>
+              <Th sort={getSortParams("download")} style={{ width: "90px", whiteSpace: "nowrap" }}>Download</Th>
+              <Th sort={getSortParams("installed")} style={{ width: "90px", whiteSpace: "nowrap" }}>Installed</Th>
               <Th
                 sort={getSortParams("net")}
+                style={{ width: "90px", whiteSpace: "nowrap" }}
                 info={{
                   popover: "Change in installed size after this update. + means the package grows, \u2212 means it shrinks.",
                   ariaLabel: "More information about Net size",
@@ -2945,7 +2964,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
               >
                 Net
               </Th>
-              <Th screenReaderText="Actions" />
+              <Th screenReaderText="Actions" style={{ width: "48px" }} />
             </Tr>
           </Thead>
           <Tbody>
@@ -2978,29 +2997,52 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
                     description={isIgnored ? "Ignored during upgrades" : undefined}
                     onSelect={() => togglePackageSelection(update.name)}
                   />
-                  <Td dataLabel="Package">
-                    <Button variant="link" isInline className="pf-v6-u-p-0" {...{ [DETAILS_TRIGGER_ATTR]: update.name }}>
-                      {update.name}
-                    </Button>
-                    {newNames.has(update.name) && (
-                      <Label color="blue" isCompact className="pf-v6-u-ml-sm">New</Label>
-                    )}
-                    {isIgnored && (
-                      <IgnoredLabel name={update.name} gate={ignoredMutation.reason} onOpen={() => openIgnoredModal(update.name)} />
-                    )}
-                    {(partition.actionable.length > 0 || partition.unresolved.length > 0) && (
-                      <AdvisoryPopover partition={partition} />
-                    )}
+                  <Td dataLabel="Package" style={{ verticalAlign: "middle", minWidth: "140px", wordBreak: "break-word" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "0.35rem" }}>
+                      <Button
+                        variant="link"
+                        isInline
+                        className="pf-v6-u-p-0"
+                        style={{ fontWeight: 600, fontSize: "0.9375rem", wordBreak: "break-word", whiteSpace: "normal", textAlign: "left" }}
+                        {...{ [DETAILS_TRIGGER_ATTR]: update.name }}
+                      >
+                        {update.name}
+                      </Button>
+                      {newNames.has(update.name) && (
+                        <Label color="blue" isCompact>New</Label>
+                      )}
+                      {isIgnored && (
+                        <IgnoredLabel name={update.name} gate={ignoredMutation.reason} onOpen={() => openIgnoredModal(update.name)} />
+                      )}
+                      {(partition.actionable.length > 0 || partition.unresolved.length > 0) && (
+                        <AdvisoryPopover partition={partition} />
+                      )}
+                    </div>
                   </Td>
-                  <Td dataLabel="Repository">
+                  <Td dataLabel="Repository" style={{ verticalAlign: "middle", whiteSpace: "nowrap" }}>
                     <Label isCompact color={update.repository === "aur" ? "purple" : "grey"}>
                       {update.repository}
                     </Label>
                   </Td>
-                  <Td dataLabel="Version">{update.current_version} {"\u2192"} {update.new_version}</Td>
-                  <Td dataLabel="Download">{formatSize(update.download_size)}</Td>
-                  <Td dataLabel="Installed size">{formatSize(update.new_size)}</Td>
-                  <Td dataLabel="Net" style={{ color: netSize > 0 ? "var(--pf-t--global--color--status--danger--default)" : netSize < 0 ? "var(--pf-t--global--color--status--success--default)" : undefined }}>
+                  <Td
+                    dataLabel="Version"
+                    style={{
+                      verticalAlign: "middle",
+                      minWidth: "160px",
+                      wordBreak: "break-word",
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      fontSize: "0.8125rem",
+                    }}
+                  >
+                    {update.current_version} {"\u2192"} {update.new_version}
+                  </Td>
+                  <Td dataLabel="Download" style={{ verticalAlign: "middle", whiteSpace: "nowrap", fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontSize: "0.8125rem", color: "var(--pf-t--global--text--color--subtle)" }}>
+                    {formatSize(update.download_size)}
+                  </Td>
+                  <Td dataLabel="Installed size" style={{ verticalAlign: "middle", whiteSpace: "nowrap", fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontSize: "0.8125rem", color: "var(--pf-t--global--text--color--subtle)" }}>
+                    {formatSize(update.new_size)}
+                  </Td>
+                  <Td dataLabel="Net" style={{ verticalAlign: "middle", whiteSpace: "nowrap", fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontSize: "0.8125rem", fontWeight: 500, color: netSize > 0 ? "var(--pf-t--global--color--status--danger--default)" : netSize < 0 ? "var(--pf-t--global--color--status--success--default)" : "var(--pf-t--global--text--color--subtle)" }}>
                     {netSize > 0 && <ArrowUpIcon style={{ marginRight: "0.25rem" }} />}
                     {netSize < 0 && <ArrowDownIcon style={{ marginRight: "0.25rem" }} />}
                     {signedSize(netSize)}
@@ -3022,14 +3064,21 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
             })}
           </Tbody>
         </Table>
+        </div>
         {sortedUpdates.length > perPage && (
-          <CompactPagination
-            itemCount={sortedUpdates.length}
-            page={page}
-            perPage={perPage}
-            onSetPage={onSetPage}
-            onPerPageSelect={onPerPageSelect}
-          />
+          <Toolbar className="pf-v6-u-px-0" style={{ marginTop: "0.5rem" }}>
+            <ToolbarContent>
+              <ToolbarItem variant="pagination" align={{ default: "alignEnd" }}>
+                <CompactPagination
+                  itemCount={sortedUpdates.length}
+                  page={page}
+                  perPage={perPage}
+                  onSetPage={onSetPage}
+                  onPerPageSelect={onPerPageSelect}
+                />
+              </ToolbarItem>
+            </ToolbarContent>
+          </Toolbar>
         )}
         </>
         )}

@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, ExpandableSection, Flex, FlexItem, Label, Tooltip } from "@patternfly/react-core";
-import { CheckIcon, CopyIcon } from "@patternfly/react-icons";
+import { CheckIcon, CopyIcon, DownloadIcon, ShareAltIcon } from "@patternfly/react-icons";
 import { LOG_CONTAINER_HEIGHT } from "../constants";
 
 interface LogViewerProps {
@@ -17,42 +17,65 @@ export function renderLogLine(line: string, index: number): React.ReactNode {
     return <div key={index} style={{ minHeight: "1.25em" }}>&nbsp;</div>;
   }
 
-  let color = "#e2e8f0";
+  // Parse: optional timestamp, initiator tag [INITIATOR], and message
+  const match = line.match(/^(\[\d{4}-\d{2}-\d{2}T[^\]]+\]\s+)?(\[[A-Za-z0-9_\-]+\])\s*(.*)$/);
+
+  let messageColor = "#e2e8f0";
   let fontWeight: string | number = "normal";
 
-  // Error patterns: error:, [error], [ALPM] error:
-  if (/^(?:\[\d{4}-\d{2}-\d{2}T[^\]]+\]\s+)?(?:\[ALPM\]\s+)?(?:error|failed):|^\[error\]/i.test(line)) {
-    color = "var(--pf-t--global--color--status--danger--default, #f87171)";
+  // Error patterns: error:, failed:
+  if (/(?:error|failed):/i.test(line)) {
+    messageColor = "var(--pf-t--global--color--status--danger--default, #f87171)";
     fontWeight = 600;
   }
-  // Warning patterns: warning:, [warn], [ALPM] warning:
-  else if (/^(?:\[\d{4}-\d{2}-\d{2}T[^\]]+\]\s+)?(?:\[ALPM\]\s+)?warning:|^\[warn(?:ing)?\]/i.test(line)) {
-    color = "var(--pf-t--global--color--status--warning--default, #fbbf24)";
+  // Warning patterns: warning:, [warn]
+  else if (/(?:warning|\[warn(?:ing)?\]):?/i.test(line)) {
+    messageColor = "var(--pf-t--global--color--status--warning--default, #fbbf24)";
   }
   // Success / install milestone patterns:
   else if (
-    /(?:\[ALPM\]\s+(?:installed|upgraded|reinstalled|transaction completed))|(?:completed successfully)|(?:==>\s+finished)/i.test(line)
+    /(?:installed|upgraded|reinstalled|transaction completed|completed successfully|==>\s+finished)/i.test(line)
   ) {
-    color = "var(--pf-t--global--color--status--success--default, #4ade80)";
+    messageColor = "var(--pf-t--global--color--status--success--default, #4ade80)";
     fontWeight = 500;
-  }
-  // Initiator and pacman / cockpit lines:
-  else if (/^\[(?:COCKPIT-AUR|COCKPIT-PACMAN|PACMAN)\]/i.test(line)) {
-    color = "var(--pf-t--global--color--brand--default, #60a5fa)";
-    fontWeight = 600;
   }
   // AUR helper steps: ==> or ->
-  else if (/^\s*(?:==>|->)/.test(line)) {
-    color = "#38bdf8";
+  else if (/^\s*(?:==>|->)/.test(line) || (match && /^\s*(?:==>|->)/.test(match[3]))) {
+    messageColor = "#38bdf8";
     fontWeight = 500;
   }
-  // ALPM hook executions:
-  else if (/^\[ALPM\]\s+(?:running|transaction started)/i.test(line)) {
-    color = "#94a3b8";
+  // ALPM hook executions or running steps:
+  else if (/(?:running|transaction started)/i.test(line)) {
+    messageColor = "#94a3b8";
+  }
+
+  if (match) {
+    const [, timestamp, initiator, msg] = match;
+    let initiatorColor = "#60a5fa";
+    const tagUpper = initiator.toUpperCase();
+    if (tagUpper.includes("ALPM-SCRIPTLET")) {
+      initiatorColor = "#34d399";
+    } else if (tagUpper.includes("ALPM")) {
+      initiatorColor = "#818cf8";
+    } else if (tagUpper.includes("AUR") || tagUpper.includes("YAY") || tagUpper.includes("PARU")) {
+      initiatorColor = "#c084fc";
+    } else if (tagUpper.includes("COCKPIT")) {
+      initiatorColor = "#38bdf8";
+    } else if (tagUpper.includes("MIRROR")) {
+      initiatorColor = "#2dd4bf";
+    }
+
+    return (
+      <div key={index} style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
+        {timestamp && <span style={{ color: "#64748b", marginRight: "0.5rem" }}>{timestamp.trim()}</span>}
+        <span style={{ color: initiatorColor, fontWeight: 700, marginRight: "0.5rem" }}>{initiator}</span>
+        <span style={{ color: messageColor, fontWeight }}>{msg}</span>
+      </div>
+    );
   }
 
   return (
-    <div key={index} style={{ color, fontWeight, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+    <div key={index} style={{ color: messageColor, fontWeight, whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
       {line}
     </div>
   );
@@ -100,14 +123,68 @@ export const LogViewer: React.FC<LogViewerProps> = ({
     el.focus();
   };
 
-  const copyLog = () => {
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+  const copyLog = async () => {
     if (!log) return;
-    window.navigator.clipboard.writeText(log).then(() => {
+    let ok = false;
+    if (typeof navigator !== "undefined" && navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(log);
+        ok = true;
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok && typeof document !== "undefined") {
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = log;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "-9999px";
+        textarea.setAttribute("readonly", "");
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        ok = document.execCommand("copy");
+        document.body.removeChild(textarea);
+      } catch {
+        ok = false;
+      }
+    }
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {
-      // fallback
-    });
+    }
+  };
+
+  const shareLog = async () => {
+    if (!log || !canShare) return;
+    try {
+      await navigator.share({
+        title: `${ariaLabel || "Cockpit AUR Log"}`,
+        text: log,
+      });
+    } catch (e: any) {
+      if (e?.name !== "AbortError") {
+        copyLog();
+      }
+    }
+  };
+
+  const downloadLog = () => {
+    if (!log) return;
+    const blob = new Blob([log], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    link.download = `cockpit-aur-log-${timestamp}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const lines = useMemo(() => {
@@ -125,6 +202,9 @@ export const LogViewer: React.FC<LogViewerProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+          minHeight: "40px",
           padding: "0.35rem 0.75rem",
           background: "var(--pf-t--global--background--color--secondary--default, #1f2937)",
           borderTopLeftRadius: "6px",
@@ -156,22 +236,50 @@ export const LogViewer: React.FC<LogViewerProps> = ({
 
         <Flex alignItems={{ default: "alignItemsCenter" }} spaceItems={{ default: "spaceItemsSm" }}>
           {log ? (
-            <Tooltip content={copied ? "Copied!" : "Copy log to clipboard"}>
-              <Button
-                variant="plain"
-                size="sm"
-                aria-label="Copy log"
-                onClick={copyLog}
-                style={{ padding: "0.2rem 0.4rem", fontSize: "0.75rem" }}
-              >
-                {copied ? (
-                  <CheckIcon style={{ color: "var(--pf-t--global--color--status--success--default)" }} />
-                ) : (
-                  <CopyIcon />
-                )}
-                <span style={{ marginLeft: "0.35rem" }}>{copied ? "Copied" : "Copy"}</span>
-              </Button>
-            </Tooltip>
+            <>
+              {canShare && (
+                <Tooltip content="Share log via system share sheet">
+                  <Button
+                    variant="plain"
+                    size="sm"
+                    aria-label="Share log"
+                    onClick={shareLog}
+                    style={{ minHeight: "36px", padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
+                  >
+                    <ShareAltIcon />
+                    <span style={{ marginLeft: "0.35rem" }}>Share</span>
+                  </Button>
+                </Tooltip>
+              )}
+              <Tooltip content={copied ? "Copied!" : "Copy log to clipboard"}>
+                <Button
+                  variant="plain"
+                  size="sm"
+                  aria-label="Copy log"
+                  onClick={copyLog}
+                  style={{ minHeight: "36px", padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
+                >
+                  {copied ? (
+                    <CheckIcon style={{ color: "var(--pf-t--global--color--status--success--default)" }} />
+                  ) : (
+                    <CopyIcon />
+                  )}
+                  <span style={{ marginLeft: "0.35rem" }}>{copied ? "Copied" : "Copy"}</span>
+                </Button>
+              </Tooltip>
+              <Tooltip content="Download log as .txt file">
+                <Button
+                  variant="plain"
+                  size="sm"
+                  aria-label="Download log"
+                  onClick={downloadLog}
+                  style={{ minHeight: "36px", padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
+                >
+                  <DownloadIcon />
+                  <span style={{ marginLeft: "0.35rem" }}>Download</span>
+                </Button>
+              </Tooltip>
+            </>
           ) : null}
         </Flex>
       </div>
@@ -191,6 +299,8 @@ export const LogViewer: React.FC<LogViewerProps> = ({
           fontSize: "0.8125rem",
           lineHeight: 1.5,
           position: "relative",
+          userSelect: "text",
+          WebkitUserSelect: "text",
         }}
         onScroll={handleScroll}
         tabIndex={0}

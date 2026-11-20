@@ -1006,30 +1006,57 @@ function runStreamingBackend(
           if (event.level === "error" && parseErrorCode(event.message) === "signature_error") {
             signatureFailure = true;
           }
-          callbacks.onData?.(`[${event.level}] ${event.message}\n`);
+          const trimmed = event.message.trim();
+          let lineText: string;
+          if (/^\[[A-Za-z0-9_\-]+\]/.test(trimmed)) {
+            lineText = `${trimmed}\n`;
+          } else {
+            const initiator = "ALPM";
+            const prefix = event.level === "error" && !trimmed.toLowerCase().startsWith("error") ? "error: " :
+                           (event.level === "warn" || event.level === "warning") && !trimmed.toLowerCase().startsWith("warning") ? "warning: " : "";
+            lineText = `[${initiator}] ${prefix}${trimmed}\n`;
+          }
+          callbacks.onData?.(lineText);
         } else if (event.type === "progress") {
-          callbacks.onData?.(`[${event.operation}] ${event.package} ${event.percent}%\n`);
+          callbacks.onData?.(`[ALPM] [${event.operation}] ${event.package} ${event.percent}%\n`);
         } else if (event.type === "download") {
           if (event.event === "progress" && event.downloaded && event.total) {
             const pct = Math.round((event.downloaded / event.total) * 100);
-            callbacks.onData?.(`Downloading ${event.filename}: ${pct}%\n`);
+            callbacks.onData?.(`[ALPM] Downloading ${event.filename}: ${pct}%\n`);
           } else if (event.event === "completed") {
-            callbacks.onData?.(`Downloaded ${event.filename}\n`);
+            callbacks.onData?.(`[ALPM] Downloaded ${event.filename}\n`);
+          } else {
+            callbacks.onData?.(`[ALPM] Downloading ${event.filename}\n`);
           }
         } else if (event.type === "event") {
-          callbacks.onData?.(`${event.event}${event.package ? `: ${event.package}` : ""}\n`);
+          let eventMsg = event.event;
+          if (event.event === "transaction_start") eventMsg = "transaction started";
+          else if (event.event === "transaction_done") eventMsg = "transaction completed";
+          else if (event.event === "hook_run_start") eventMsg = `running '${event.package || "hook"}'...`;
+          else if (event.event === "hook_run_done") eventMsg = `completed '${event.package || "hook"}'`;
+          else if (event.event === "hook_start") eventMsg = "running pre/post-transaction hooks";
+          else if (event.event === "hook_done") eventMsg = "transaction hooks completed";
+          else if (event.package) eventMsg = `${event.event} ${event.package}`;
+          callbacks.onData?.(`[ALPM] ${eventMsg}\n`);
         } else if (event.type === "complete") {
           terminal = { success: event.success, message: event.message, code: event.code ? asErrorCode(event.code) : undefined, details: event.details };
         } else if (event.type === "mirror_test") {
           callbacks.onData?.(
-            `[${event.current}/${event.total}] ${event.url}: ${event.result.success ? `${event.result.latency_ms}ms` : event.result.error}\n`,
+            `[MIRROR] [${event.current}/${event.total}] ${event.url}: ${event.result.success ? `${event.result.latency_ms}ms` : event.result.error}\n`,
           );
         } else {
           const unhandled: never = event;
           console.warn("Unknown StreamEvent type:", (unhandled as StreamEvent).type);
         }
       } catch {
-        callbacks.onData?.(line + "\n");
+        const trimmed = line.trim();
+        if (/^\[[A-Za-z0-9_\-]+\]/.test(trimmed)) {
+          callbacks.onData?.(`${trimmed}\n`);
+        } else if (/^\s*(?:==>|->)/.test(trimmed)) {
+          callbacks.onData?.(`[AUR] ${trimmed}\n`);
+        } else {
+          callbacks.onData?.(`[PACMAN] ${trimmed}\n`);
+        }
       }
     }
   });
@@ -1050,7 +1077,14 @@ function runStreamingBackend(
           }
         }
       } catch {
-        callbacks.onData?.(buffer + "\n");
+        const trimmed = buffer.trim();
+        if (/^\[[A-Za-z0-9_\-]+\]/.test(trimmed)) {
+          callbacks.onData?.(`${trimmed}\n`);
+        } else if (/^\s*(?:==>|->)/.test(trimmed)) {
+          callbacks.onData?.(`[AUR] ${trimmed}\n`);
+        } else {
+          callbacks.onData?.(`[PACMAN] ${trimmed}\n`);
+        }
       }
     }
     const problem = failure && typeof failure === "object" && "problem" in failure ? failure.problem : undefined;
