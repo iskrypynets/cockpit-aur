@@ -24,6 +24,7 @@ def make_request(url: str, token: str, method: str = "GET", data: bytes | None =
     req = urllib.request.Request(url, method=method, data=data)
     req.add_header("Authorization", f"token {token}")
     req.add_header("Accept", "application/json")
+    req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     if content_type:
         req.add_header("Content-Type", content_type)
     return req
