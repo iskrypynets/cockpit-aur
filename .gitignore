@@ -36,6 +36,9 @@ prepare_reboot.sh
 # Arch packaging
 *.pkg.tar.zst
 *.pkg.tar.xz
+*.tar.xz
+dist-releases/
+release_notes.md
 pkg/
 src/pkg/
 

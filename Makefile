@@ -7,7 +7,7 @@ TARFILE = cockpit-aur-$(VERSION).tar.xz
 
 BACKEND_BIN = backend/target/release/cockpit-aur-backend
 
-.PHONY: all build build-backend build-frontend generate-types clean install install-check devel-install lint lint-frontend lint-backend test test-frontend test-backend test-e2e test-e2e-ui check dist release-notes
+.PHONY: all build build-backend build-frontend generate-types clean install install-check devel-install lint lint-frontend lint-backend test test-frontend test-backend test-e2e test-e2e-ui check dist release-notes release release-gitea release-github release-dry
 
 all: build install
 	@if [ -n "$$SUDO_USER" ] && [ -d node_modules ]; then chown -R $$SUDO_USER node_modules; fi
@@ -37,6 +37,18 @@ dist:
 
 release-notes:
 	@python3 tools/extract_changelog.py $(VERSION)
+
+release:
+	python3 tools/release.py --target all
+
+release-gitea:
+	python3 tools/release.py --target gitea
+
+release-github:
+	python3 tools/release.py --target github
+
+release-dry:
+	python3 tools/release.py --dry-run
 
 install:
 	node tools/install.mjs system "$(DESTDIR)" "$(PREFIX)" "$(LIBEXECDIR)" "$(BACKEND_BIN)" dist
