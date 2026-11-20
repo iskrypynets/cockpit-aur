@@ -7,7 +7,7 @@ TARFILE = cockpit-aur-$(VERSION).tar.xz
 
 BACKEND_BIN = backend/target/release/cockpit-aur-backend
 
-.PHONY: all build build-backend build-frontend generate-types clean install install-check devel-install lint lint-frontend lint-backend test test-frontend test-backend test-e2e test-e2e-ui check dist
+.PHONY: all build build-backend build-frontend generate-types clean install install-check devel-install lint lint-frontend lint-backend test test-frontend test-backend test-e2e test-e2e-ui check dist release-notes
 
 all: build install
 	@if [ -n "$$SUDO_USER" ] && [ -d node_modules ]; then chown -R $$SUDO_USER node_modules; fi
@@ -34,6 +34,9 @@ clean:
 
 dist:
 	git archive --format=tar --prefix=cockpit-aur-$(VERSION)/ HEAD | xz > $(TARFILE)
+
+release-notes:
+	@python3 tools/extract_changelog.py $(VERSION)
 
 install:
 	node tools/install.mjs system "$(DESTDIR)" "$(PREFIX)" "$(LIBEXECDIR)" "$(BACKEND_BIN)" dist
