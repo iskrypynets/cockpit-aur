@@ -478,6 +478,10 @@ fn main() {
 
     // Environment changes must precede signal handlers, runtimes and worker threads.
     unsafe {
+        // Disconnect from SIGHUP and SIGPIPE so that session lock, terminal disconnects
+        // or broken pipe to Cockpit bridge do not abort long-running operations.
+        libc::signal(libc::SIGHUP, libc::SIG_IGN);
+        libc::signal(libc::SIGPIPE, libc::SIG_IGN);
         cockpit_aur_backend::network::initialize(&args[1]);
     }
 

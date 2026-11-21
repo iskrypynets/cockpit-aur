@@ -5,6 +5,7 @@ import { appendCapped } from "../utils";
 export function useStreamingLog(): {
   log: string;
   appendLog: (data: string) => void;
+  replaceLog: (data: string) => void;
   flushLog: () => void;
   resetLog: () => void;
 } {
@@ -25,6 +26,13 @@ export function useStreamingLog(): {
     if (timer.current === null) timer.current = setTimeout(flushLog, LOG_FLUSH_MS);
   }, [flushLog]);
 
+  const replaceLog = useCallback((data: string) => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+    buffer.current = "";
+    setLog(data);
+  }, []);
+
   const resetLog = useCallback(() => {
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = null;
@@ -36,5 +44,5 @@ export function useStreamingLog(): {
     if (timer.current !== null) clearTimeout(timer.current);
   }, []);
 
-  return { log, appendLog, flushLog, resetLog };
+  return { log, appendLog, replaceLog, flushLog, resetLog };
 }

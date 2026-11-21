@@ -59,7 +59,7 @@ import { TidyUpModal } from './TidyUpModal';
 import { ConfigReconciliationModal } from './ConfigReconciliationModal';
 import { DEFAULT_KEEP_VERSIONS, type CleanupProjection } from '../cacheProjection';
 import { KeyringWarnings, WarningsAlert } from './KeyringView';
-import { initialProgress, progressPercent, progressValueText, reduceProgress, ProgressPlan, ProgressState } from '../progress';
+import { initialProgress, progressPercent, progressValueText, reduceProgress, reduceAurProgress, ProgressPlan, ProgressState } from '../progress';
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
@@ -447,7 +447,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
   const announce = useAnnounce();
   const [state, setState] = useState<ViewState>("loading");
   const [updates, setUpdates] = useState<UpdateInfo[]>([]);
-  const { log, appendLog, flushLog, resetLog } = useStreamingLog();
+  const { log, appendLog, replaceLog, flushLog, resetLog } = useStreamingLog();
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<ErrorCode | undefined>(undefined);
   const [errorDetails, setErrorDetails] = useState<string | undefined>(undefined);
@@ -1128,24 +1128,52 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
       .then((status) => {
         if (!active) return;
         if (status.status === "running") {
-          setUpgrading(true);
+          setState("applying");
+          setUpgradeProgress({
+            value: 50,
+            phase: "aur",
+            phaseLabel: "Upgrading AUR packages (in progress)",
+            stepLabel: "Reconnected to active background upgrade",
+            item: "",
+            stage: "transaction",
+            fileBytes: {},
+            removeTotal: 0,
+          });
           getAurOperationLog().then((data) => {
-            if (active && data.log) setUpgradeLog(data.log);
+            if (active && data.log) {
+              replaceLog(data.log);
+              for (const line of data.log.split("\n")) {
+                if (line.trim()) {
+                  setUpgradeProgress((prev) => reduceAurProgress(prev, line, 1));
+                }
+              }
+            }
           });
           interval = setInterval(() => {
             getAurOperationStatus().then((st) => {
               if (!active) return;
               getAurOperationLog().then((data) => {
-                if (active && data.log) setUpgradeLog(data.log);
+                if (active && data.log) {
+                  replaceLog(data.log);
+                  for (const line of data.log.split("\n")) {
+                    if (line.trim()) {
+                      setUpgradeProgress((prev) => reduceAurProgress(prev, line, 1));
+                    }
+                  }
+                }
               });
               if (st.status !== "running") {
                 if (interval) clearInterval(interval);
-                setUpgrading(false);
-                loadUpdates();
-                if (st.status === "completed") {
+                if (st.status === "completed" || st.exit_code === 0) {
                   announce("AUR upgrade completed successfully");
-                } else if (st.status === "failed") {
+                  loadUpdates();
+                  setState("success");
+                } else {
                   announce("AUR upgrade failed", { assertive: true });
+                  failWith(
+                    "upgrade",
+                    st.error || `AUR upgrade failed with exit code ${st.exit_code ?? 1}`
+                  );
                 }
               }
             }).catch(() => {});
@@ -1396,12 +1424,50 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
     const hasRepoUpdates = (preflight?.add ?? []).some((p) => p.repo !== "aur") ||
       selectedUpdates.some((u) => u.repository !== "aur");
 
+    const aurPackageList = (preflight?.add ?? [])
+      .filter((p) => p.repo === "aur")
+      .map((p) => p.name);
+    const resolvedAurPackages = aurPackageList.length > 0
+      ? aurPackageList
+      : selectedUpdates.filter((u) => u.repository === "aur").map((u) => u.name);
+    const totalAur = resolvedAurPackages.length;
+
     const runAur = () => {
       appendLog("\n[COCKPIT-AUR] Starting AUR upgrade with helper...\n");
+      // Immediately transition progress from repo post-transaction hooks to AUR phase!
+      setUpgradeProgress({
+        value: 0,
+        phase: "aur",
+        phaseLabel: totalAur > 0 ? `Upgrading AUR packages (0 of ${totalAur})` : "Upgrading AUR packages",
+        stepLabel: totalAur > 0 ? `Package 1 of ${totalAur} (${totalAur} remaining)` : "Preparing AUR helper",
+        item: resolvedAurPackages[0] ?? "",
+        stage: "transaction",
+        fileBytes: {},
+        removeTotal: 0,
+      });
+
       cancelRef.current = upgradeAurPackages({
         onEvent: handleEvent,
-        onData: appendLog,
-        onComplete: finishUpgrade,
+        onData: (data) => {
+          appendLog(data);
+          for (const line of data.split("\n")) {
+            if (line.trim()) {
+              setUpgradeProgress((prev) =>
+                reduceAurProgress(prev, line, totalAur, resolvedAurPackages)
+              );
+            }
+          }
+        },
+        onComplete: () => {
+          setUpgradeProgress((prev) => ({
+            ...prev,
+            phase: "aur",
+            phaseLabel: `AUR packages upgraded (${totalAur} of ${totalAur})`,
+            stepLabel: `${totalAur} of ${totalAur} completed`,
+            value: 100,
+          }));
+          finishUpgrade();
+        },
         onError: (err, code, details) => {
           flushLog();
           cancelRef.current = null;

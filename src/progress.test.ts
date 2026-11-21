@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { StreamEvent } from "./bindings";
-import { initialProgress, progressPercent, progressValueText, reduceProgress, ProgressPlan, ProgressState } from "./progress";
+import { initialProgress, progressPercent, progressValueText, reduceProgress, reduceAurProgress, ProgressPlan, ProgressState } from "./progress";
 
 const plan: ProgressPlan = { downloadBytes: 1000, packages: 2 };
 
@@ -144,5 +144,37 @@ describe("reduceProgress", () => {
     expect(progressPercent(states[12])).toBe(76);
     expect(progressValueText(states[12])).toBe("76 percent, Upgrading packages, 1 of 2");
     expect(progressValueText(initialProgress)).toBe("Preparing");
+  });
+});
+
+describe("reduceAurProgress", () => {
+  it("tracks package build progress and remaining items accurately", () => {
+    const pkgs = ["ruby", "ruby-bundled-gems", "ruby-stdlib"];
+    let state: ProgressState = {
+      ...initialProgress,
+      phase: "aur",
+      phaseLabel: "Upgrading AUR packages (0 of 3)",
+      stepLabel: "3 packages queued (3 remaining)",
+      value: 0,
+    };
+
+    state = reduceAurProgress(state, "==> Making package: ruby 3.4.13-1", 3, pkgs);
+    expect(state.phase).toBe("aur");
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (0 of 3)");
+    expect(state.stepLabel).toBe("Package 1 of 3 (3 remaining)");
+    expect(state.item).toBe("ruby");
+    expect(state.value).toBe(0);
+
+    state = reduceAurProgress(state, "==> Making package: ruby-bundled-gems 3.4.13-1", 3, pkgs);
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (1 of 3)");
+    expect(state.stepLabel).toBe("Package 2 of 3 (2 remaining)");
+    expect(state.item).toBe("ruby-bundled-gems");
+    expect(state.value).toBe(33);
+
+    state = reduceAurProgress(state, "(3/3) upgrading ruby-stdlib", 3, pkgs);
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (2 of 3)");
+    expect(state.stepLabel).toBe("Package 3 of 3 (1 remaining)");
+    expect(state.item).toBe("ruby-stdlib");
+    expect(state.value).toBe(67);
   });
 });

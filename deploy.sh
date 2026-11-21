@@ -128,23 +128,45 @@ wait_for_safe_deploy() {
                     is_busy=1
                     reason="AUR upgrade operation is active (PID: $pid)"
                 fi
-            elif pgrep -x yay >/dev/null 2>&1 || pgrep -x pacman >/dev/null 2>&1; then
-                is_busy=1
-                reason="package manager process is running (yay/pacman)"
+            fi
+            if [ "$is_busy" -eq 0 ]; then
+                if pgrep -x cockpit-aur-backend >/dev/null 2>&1; then
+                    is_busy=1
+                    reason="cockpit-aur-backend is running"
+                elif pgrep -x yay >/dev/null 2>&1; then
+                    is_busy=1
+                    reason="yay package manager is running"
+                elif pgrep -x makepkg >/dev/null 2>&1; then
+                    is_busy=1
+                    reason="makepkg compilation is running"
+                elif pgrep -x pacman >/dev/null 2>&1; then
+                    is_busy=1
+                    reason="pacman transaction is running"
+                fi
             fi
         else
             local remote_check
             remote_check=$(ssh -o BatchMode=yes "$REMOTE_PLEX" bash -c '
                 if [ -f "/var/lib/pacman/db.lck" ]; then
                     echo "LOCKED:pacman database is locked (/var/lib/pacman/db.lck)"
-                elif [ -f "/tmp/cockpit-aur-operation.json" ]; then
+                    exit 0
+                fi
+                if [ -f "/tmp/cockpit-aur-operation.json" ]; then
                     pid=$(grep -o "\"pid\":[0-9]*" /tmp/cockpit-aur-operation.json 2>/dev/null | cut -d":" -f2 || true)
                     status=$(grep -o "\"status\":\"[^\"]*\"" /tmp/cockpit-aur-operation.json 2>/dev/null | cut -d"\"" -f4 || true)
                     if [ "$status" = "running" ] && [ -n "$pid" ] && [ -d "/proc/$pid" ]; then
                         echo "LOCKED:AUR upgrade is active (PID: $pid)"
+                        exit 0
                     fi
-                elif pgrep -x yay >/dev/null 2>&1 || pgrep -x pacman >/dev/null 2>&1; then
-                    echo "LOCKED:package manager process is running (yay/pacman)"
+                fi
+                if pgrep -x cockpit-aur-backend >/dev/null 2>&1; then
+                    echo "LOCKED:cockpit-aur-backend is running"
+                elif pgrep -x yay >/dev/null 2>&1; then
+                    echo "LOCKED:yay package manager is running"
+                elif pgrep -x makepkg >/dev/null 2>&1; then
+                    echo "LOCKED:makepkg compilation is running"
+                elif pgrep -x pacman >/dev/null 2>&1; then
+                    echo "LOCKED:pacman transaction is running"
                 fi
             ' 2>/dev/null || true)
             if [ -n "$remote_check" ]; then

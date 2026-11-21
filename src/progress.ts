@@ -7,7 +7,7 @@ export interface ProgressPlan {
   packages: number;
 }
 
-export type ProgressPhase = "preparing" | "downloading" | "transaction" | "hooks";
+export type ProgressPhase = "preparing" | "downloading" | "transaction" | "hooks" | "aur";
 
 export interface ProgressState {
   /** 0-100, non-decreasing; undefined until the first real count. */
@@ -147,4 +147,52 @@ export function progressValueText(state: ProgressState): string {
   return [percent === undefined ? undefined : `${percent} percent`, state.phaseLabel, state.stepLabel]
     .filter(Boolean)
     .join(", ");
+}
+
+/** Parses AUR helper log output to track package-level progress and remaining items. */
+export function reduceAurProgress(
+  state: ProgressState,
+  line: string,
+  totalPackages: number,
+  aurPackageList?: string[]
+): ProgressState {
+  const makingMatch = line.match(/(?:Making package|Building|upgrading|installing)[:\s]+([a-zA-Z0-9@._+-]+)/i);
+  let currentItem = state.item;
+  if (makingMatch && (!aurPackageList || aurPackageList.includes(makingMatch[1]))) {
+    currentItem = makingMatch[1];
+  }
+
+  const countMatch = line.match(/\((\d+)\/(\d+)\)\s+(?:upgrading|installing|reinstalling)\s+([a-zA-Z0-9@._+-]+)/i);
+  let current = 0;
+  let total = totalPackages;
+
+  if (countMatch) {
+    current = parseInt(countMatch[1], 10);
+    total = parseInt(countMatch[2], 10);
+    if (countMatch[3]) currentItem = countMatch[3];
+  } else if (aurPackageList && currentItem) {
+    const idx = aurPackageList.indexOf(currentItem);
+    if (idx !== -1) {
+      current = idx + 1;
+      total = Math.max(totalPackages, aurPackageList.length);
+    }
+  }
+
+  if (total <= 0) total = 1;
+  const completed = Math.max(0, current > 0 ? current - 1 : 0);
+  const remaining = Math.max(0, total - completed);
+  const percent = Math.min(99, Math.round((completed / total) * 100));
+
+  const stepLabel = current > 0
+    ? `Package ${current} of ${total} (${remaining} remaining)`
+    : `${total} packages queued (${total} remaining)`;
+
+  return {
+    ...state,
+    phase: "aur",
+    phaseLabel: `Upgrading AUR packages (${completed} of ${total})`,
+    stepLabel,
+    item: currentItem,
+    value: raise(state.value, percent),
+  };
 }

@@ -229,9 +229,14 @@ pub fn run_aur_operation(
         _ => return Err(anyhow!("Unsupported AUR helper '{helper_name}'")),
     }
 
+    use std::os::unix::process::CommandExt;
+
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+    // Put child (yay/paru and its compilation processes) in its own process group
+    // so signals from Cockpit session drops or controlling terminals never abort builds.
+    cmd.process_group(0);
 
     let mut child = cmd
         .spawn()
