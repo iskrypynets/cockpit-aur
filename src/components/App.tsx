@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Alert,
+  AlertActionCloseButton,
   AlertActionLink,
   Badge,
   Flex,
@@ -141,6 +142,7 @@ export const App: React.FC = () => {
   const signoffTabShown = signoffs.state !== "hidden";
   const signoffCredentials = signoffs.state === "available" ? signoffs.credentials : null;
   const [staleBundle, setStaleBundle] = useState<string | null>(null);
+  const [staleDismissed, setStaleDismissed] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const jumpInputRef = useRef<HTMLInputElement | null>(null);
   const announce = useAnnounce();
@@ -394,19 +396,19 @@ export const App: React.FC = () => {
     <DowngradeProvider>
     <Page className="no-masthead-sidebar pf-m-no-sidebar">
       <PageSection hasBodyWrapper={false} >
-        {staleBundle !== null && (
+        {staleBundle !== null && !staleDismissed && (
           <Alert
             variant="warning"
             isInline
             title="Reload to finish updating this page"
             className="pf-v6-u-mb-md"
+            actionClose={<AlertActionCloseButton onClose={() => setStaleDismissed(true)} />}
             actionLinks={
               <AlertActionLink onClick={() => window.location.reload()}>Reload page</AlertActionLink>
             }
           >
-            This page was loaded from version {bundleVersion} of cockpit-pacman
-            but is talking to version {staleBundle}. Reload the page to pick up
-            the new version; the current tab and search are kept.
+            This page was loaded from version {bundleVersion} of cockpit-aur
+            but is talking to backend version {staleBundle}. Reload the page or update the backend binary to match versions.
           </Alert>
         )}
         {signoffsBlocked && credentialsSettled && (

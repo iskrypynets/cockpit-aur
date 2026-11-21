@@ -105,7 +105,28 @@ def upload_asset(base_url: str, repo: str, release_id: int, file_path: Path, tok
             pass
 
 
+def load_env():
+    candidates = [
+        Path(__file__).resolve().parent.parent / ".env",
+        Path.home() / ".config" / "cockpit-aur" / "release.env",
+    ]
+    for env_file in candidates:
+        if env_file.is_file():
+            try:
+                for line in env_file.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip("'\"")
+                        if k not in os.environ:
+                            os.environ[k] = v
+            except Exception:
+                pass
+
+
 def main():
+    load_env()
     parser = argparse.ArgumentParser(description="Publish release to Gitea")
     parser.add_argument("--tag", required=True, help="Git tag (e.g. v0.5.3)")
     parser.add_argument("--title", default=None, help="Release title")

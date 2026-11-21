@@ -143,18 +143,42 @@ def build_release_artifacts(version: str) -> list[Path]:
 
     shutil.rmtree(stage_dir)
 
-    # 3. Checksums file
+    # 3. Arch Linux Package (.pkg.tar.zst)
+    pkg_file = None
+    try:
+        print(f"  -> Building Arch package with makepkg...")
+        run(["makepkg", "-f", "--nodeps"], cwd=ROOT_DIR)
+        for f in ROOT_DIR.glob(f"cockpit-aur-{version}-*.pkg.tar.zst"):
+            target_pkg = out_dir / f.name
+            shutil.copy(f, target_pkg)
+            pkg_file = target_pkg
+            break
+    except Exception as e:
+        print(f"Warning: makepkg failed: {e}")
+
+    # 4. Checksums file
     checksums_path = out_dir / "sha256sums.txt"
     bin_hash = compute_sha256(release_bin)
     arc_hash = compute_sha256(archive_path)
-    checksums_path.write_text(f"{bin_hash}  cockpit-aur-backend\n{arc_hash}  {archive_name}\n", encoding="utf-8")
+    checksum_lines = [
+        f"{bin_hash}  cockpit-aur-backend",
+        f"{arc_hash}  {archive_name}",
+    ]
+    if pkg_file and pkg_file.is_file():
+        pkg_hash = compute_sha256(pkg_file)
+        checksum_lines.append(f"{pkg_hash}  {pkg_file.name}")
+
+    checksums_path.write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
+
+    assets = [release_bin, archive_path, checksums_path]
+    if pkg_file and pkg_file.is_file():
+        assets.append(pkg_file)
 
     print(f"✓ Release assets created in {out_dir}:")
-    print(f"  - {release_bin.name} ({release_bin.stat().st_size:,} bytes)")
-    print(f"  - {archive_path.name} ({archive_path.stat().st_size:,} bytes)")
-    print(f"  - sha256sums.txt")
+    for a in assets:
+        print(f"  - {a.name} ({a.stat().st_size:,} bytes)")
 
-    return [release_bin, archive_path, checksums_path]
+    return assets
 
 
 def ensure_git_tag(version: str, dry_run: bool = False, skip_push: bool = False, remotes: list[str] = ["origin", "github"]):
