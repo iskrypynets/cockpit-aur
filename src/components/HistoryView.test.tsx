@@ -27,6 +27,8 @@ vi.mock("../api", async () => {
     getSyncPackageInfo: vi.fn(),
     getScheduledRuns: vi.fn(),
     getScheduleConfig: vi.fn(),
+    getAurHistory: vi.fn(async () => ({ entries: [], total: 0 })),
+    getAurHistoryLog: vi.fn(async () => ({ id: "", log: "" })),
     listIgnoredPackages: vi.fn(async () => ({ packages: [], total: 0 })),
     listDowngrades: vi.fn(),
     listArchiveVersions: vi.fn(),
@@ -37,6 +39,7 @@ vi.mock("../api", async () => {
 const mockGetGroupedHistory = vi.mocked(api.getGroupedHistory);
 const mockGetHistory = vi.mocked(api.getHistory);
 const mockGetScheduledRuns = vi.mocked(api.getScheduledRuns);
+const mockGetAurHistory = vi.mocked(api.getAurHistory);
 
 const scheduledRun = (timestamp: string, duration_secs: number | null): api.ScheduledRunEntry => ({
   timestamp,
@@ -1058,5 +1061,28 @@ describe("HistoryView", () => {
       expect(await within(dialog).findByText("6.18.4-arch1-1 is not in the cache or the archive")).toBeInTheDocument();
       expect(api.previewDowngrade).not.toHaveBeenCalled();
     });
+  });
+
+  it("renders AUR operations history card when AUR entries exist", async () => {
+    mockGetAurHistory.mockResolvedValueOnce({
+      entries: [
+        {
+          id: "aur-1795291267",
+          timestamp: "2026-11-21T22:01:07+0200",
+          operation: "upgrade",
+          packages: ["lib32-imlib2"],
+          status: "failed",
+          exit_code: 1,
+          duration_secs: 526,
+          error: "AUR operation failed with exit code 1",
+          has_log: true,
+        },
+      ],
+      total: 1,
+    });
+    render(<HistoryView />);
+    expect(await screen.findByText("AUR Operations History")).toBeInTheDocument();
+    expect(screen.getByText("lib32-imlib2")).toBeInTheDocument();
+    expect(screen.getByText("Failed (1)")).toBeInTheDocument();
   });
 });

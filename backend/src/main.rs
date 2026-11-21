@@ -153,6 +153,8 @@ const COMMANDS: &[&str] = &[
     "mark-dismissed",
     "aur-operation-status",
     "aur-operation-log",
+    "aur-history",
+    "aur-history-log",
     "clear-aur-cache",
 ];
 
@@ -169,6 +171,9 @@ Commands:
                          Upgrade installed AUR packages using yay or paru
   aur-operation-status   Get current background AUR operation status
   aur-operation-log      Read logs of current or recent background AUR operation
+  aur-history [search] [limit]
+                         Get historical AUR operations
+  aur-history-log ID     Get build logs for historical AUR operation
   clear-aur-cache        Clear cached AUR RPC metadata
   undo-repo-save TIMESTAMP REVISION
                          Undo a repository save if it is still current
@@ -601,6 +606,18 @@ fn main() {
         }
         "aur-operation-status" => cockpit_aur_backend::aur::get_operation_status(),
         "aur-operation-log" => cockpit_aur_backend::aur::get_operation_log(),
+        "aur-history" => {
+            let search = args.get(2).map(|s| s.as_str());
+            let limit = args.get(3).and_then(|s| s.parse::<usize>().ok());
+            cockpit_aur_backend::aur::get_aur_history(search, limit)
+        }
+        "aur-history-log" => {
+            if args.len() < 3 {
+                eprintln!("Error: aur-history-log requires an ID");
+                std::process::exit(1);
+            }
+            cockpit_aur_backend::aur::get_aur_history_log(&args[2])
+        }
         "clear-aur-cache" => cockpit_aur_backend::aur::clear_aur_cache().and_then(|_| {
             cockpit_aur_backend::util::emit_json(&serde_json::json!({
                 "success": true,

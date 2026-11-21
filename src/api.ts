@@ -404,6 +404,40 @@ export interface AurOperationStatus {
   error?: string;
 }
 
+export interface AurHistoryEntry {
+  id: string;
+  timestamp: string;
+  operation: string;
+  target?: string;
+  packages: string[];
+  status: "completed" | "failed" | "cancelled" | "interrupted" | string;
+  exit_code?: number;
+  duration_secs?: number;
+  error?: string;
+  has_log?: boolean;
+}
+
+export interface AurHistoryResponse {
+  entries: AurHistoryEntry[];
+  total: number;
+}
+
+export async function getAurHistory(params: { search?: string; limit?: number; signal?: AbortSignal } = {}): Promise<AurHistoryResponse> {
+  const args: string[] = [];
+  if (params.search !== undefined) {
+    args.push(sanitizeSearchInput(params.search));
+  }
+  if (params.limit !== undefined) {
+    if (args.length === 0) args.push("");
+    args.push(String(params.limit));
+  }
+  return runBackend<AurHistoryResponse>("aur-history", args, { superuser: "none", signal: params.signal });
+}
+
+export async function getAurHistoryLog(id: string): Promise<{ id: string; log: string }> {
+  return runBackend<{ id: string; log: string }>("aur-history-log", [id], { superuser: "none" });
+}
+
 export async function getAurOperationStatus(): Promise<AurOperationStatus> {
   return runBackend<AurOperationStatus>("aur-operation-status", [], { superuser: "none" });
 }

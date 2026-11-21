@@ -55,10 +55,13 @@ import {
   HistoryParams,
   ScheduledRunEntry,
   TransactionOrigin,
+  AurHistoryEntry,
+  getAurHistory,
   getGroupedHistory,
   getHistory,
   getScheduledRuns,
 } from "../api";
+import { AurHistoryCard } from "./AurHistoryCard";
 import { TimeAgo } from "./TimeAgo";
 import { describeRun, formatRunTime } from "./TransactionBanner";
 import { ScheduleModal, RunDetails, RunStatus, formatDuration, runPackages } from "./ScheduleModal";
@@ -283,6 +286,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
   const [detailsRow, setDetailsRow] = useState<string | null>(null);
   const [scheduledRuns, setScheduledRuns] = useState<ScheduledRunEntry[]>([]);
   const [scheduleHistoryRun, setScheduleHistoryRun] = useState<string | null>(null);
+  const [aurHistory, setAurHistory] = useState<AurHistoryEntry[]>([]);
+  const [aurHistoryLoading, setAurHistoryLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshSpinner, setRefreshSpinner] = useState(false);
   const spinnerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -307,6 +312,18 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
 
   const loadScheduledRuns = useCallback(() => {
     getScheduledRuns().then((response) => setScheduledRuns(response.runs), () => {});
+  }, []);
+
+  const loadAurHistory = useCallback(async () => {
+    setAurHistoryLoading(true);
+    try {
+      const response = await getAurHistory();
+      setAurHistory(response.entries);
+    } catch {
+      // Ignore background error
+    } finally {
+      setAurHistoryLoading(false);
+    }
   }, []);
 
   const activeDetailsRow = !detailsTarget ? null : detailsRow ?? (() => {
@@ -379,6 +396,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
     stopRefreshing();
     setNewGroupKeys(NO_KEYS);
     loadScheduledRuns();
+    void loadAurHistory();
     try {
       const response = await fetchHistory({ offset, limit: perPage, filter, search: searchQuery, until: until || undefined });
       if (seq !== loadSeqRef.current) return;
@@ -400,6 +418,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
     let cancelled = false;
     const seq = ++loadSeqRef.current;
     loadScheduledRuns();
+    void loadAurHistory();
     fetchHistory({ offset, limit: perPage, filter, search: searchQuery, until: until || undefined })
       .then((response) => {
         if (cancelled || seq !== loadSeqRef.current) return;
@@ -429,6 +448,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
       spinnerTimerRef.current = setTimeout(() => setRefreshSpinner(true), REFRESH_SPINNER_DELAY_MS);
     }
     loadScheduledRuns();
+    void loadAurHistory();
     try {
       const response = await fetchHistory({ offset, limit: perPage, filter, search: searchQuery, until: until || undefined });
       if (seq === targetLoadRef.current) targetLoadRef.current = null;
@@ -950,6 +970,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
+
+        <AurHistoryCard
+          entries={aurHistory}
+          searchQuery={searchQuery}
+          isLoading={aurHistoryLoading}
+        />
 
         {refreshError && state === "ready" && (
           <RefreshFailedAlert

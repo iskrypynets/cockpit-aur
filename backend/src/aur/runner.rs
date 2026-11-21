@@ -62,6 +62,18 @@ fn write_operation_status(
         error: error.map(|s| s.to_string()),
     };
     let _ = crate::util::write_json_atomic(std::path::Path::new(OPERATION_FILE), &op_status);
+    if status != "running" && status != "idle" {
+        super::history::record_aur_operation(
+            status,
+            operation,
+            target,
+            packages,
+            started_at,
+            current_timestamp(),
+            exit_code,
+            error,
+        );
+    }
 }
 
 pub fn get_operation_status() -> Result<()> {
