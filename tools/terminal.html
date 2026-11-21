@@ -9,6 +9,14 @@
     <script src="../base1/po.js"></script>
     <script src="po.js"></script>
     <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0c0e;
+        }
+
         .xterm, .xterm-screen, .xterm-rows, .xterm-accessibility {
             -webkit-user-select: text !important;
             user-select: text !important;
@@ -20,133 +28,136 @@
             -webkit-overflow-scrolling: touch !important;
         }
         .xterm-viewport::-webkit-scrollbar {
-            width: 10px !important;
-            background: rgba(0, 0, 0, 0.4) !important;
+            width: 8px !important;
+            background: rgba(0, 0, 0, 0.3) !important;
         }
         .xterm-viewport::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.35) !important;
-            border-radius: 5px !important;
+            background: rgba(255, 255, 255, 0.3) !important;
+            border-radius: 4px !important;
         }
 
-        /* Floating Tool Container */
-        #terminal-floating-container {
+        /* Bottom-Right Floating Controls (Non-intrusive) */
+        #term-fab-container {
             position: fixed;
-            top: 10px;
-            right: 12px;
+            bottom: 24px;
+            right: 18px;
             z-index: 99999;
             user-select: none;
             -webkit-user-select: none;
+            touch-action: manipulation;
         }
 
-        /* Small semi-transparent toggle icon (default state) */
-        #term-toggle-btn {
+        /* Tiny semi-transparent trigger button */
+        #term-fab-toggle {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            background: rgba(30, 30, 35, 0.55);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: rgba(255, 255, 255, 0.75);
+            background: rgba(30, 32, 38, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.7);
             cursor: pointer;
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            transition: all 0.2s ease;
-            touch-action: manipulation;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+            opacity: 0.45;
+            transition: opacity 0.25s ease, transform 0.2s ease, background 0.2s ease;
         }
-        #term-toggle-btn:hover, #term-toggle-btn:focus-visible {
-            background: rgba(45, 45, 52, 0.95);
+        #term-fab-toggle:hover, #term-fab-toggle:active, #term-fab-toggle:focus {
+            opacity: 1 !important;
+            background: rgba(45, 48, 58, 0.95);
             color: #ffffff;
-            border-color: rgba(255, 255, 255, 0.4);
-            transform: scale(1.06);
+            transform: scale(1.08);
         }
 
-        /* Expanded toolbar */
-        #terminal-toolbar {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 6px;
-            background: rgba(25, 25, 28, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            border-radius: 10px;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
-            transition: opacity 0.15s ease, transform 0.15s ease;
+        /* Expandable popup panel */
+        #term-fab-menu {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+            background: rgba(24, 25, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            animation: fabFadeIn 0.15s ease-out;
         }
 
-        #terminal-toolbar.hidden {
-            display: none !important;
+        @keyframes fabFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .term-tool-btn {
+        .fab-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            height: 30px;
-            min-width: 30px;
-            padding: 0 8px;
+            gap: 6px;
+            height: 34px;
+            min-width: 34px;
+            padding: 0 12px;
             font-size: 13px;
             font-family: inherit;
             font-weight: 600;
             color: #ffffff;
             background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.12s ease;
-            touch-action: manipulation;
+            white-space: nowrap;
         }
-        .term-tool-btn:hover, .term-tool-btn:focus-visible {
+        .fab-btn:hover, .fab-btn:focus-visible {
             background: rgba(255, 255, 255, 0.2);
             border-color: rgba(255, 255, 255, 0.4);
         }
-        .term-tool-btn:active {
-            transform: scale(0.92);
+        .fab-btn:active {
+            transform: scale(0.94);
         }
 
-        #copy-terminal-btn {
-            gap: 5px;
-            padding: 0 9px;
+        .fab-btn-close {
+            background: transparent;
+            border-color: transparent;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            height: 26px;
         }
-        #term-close-btn {
-            color: rgba(255, 255, 255, 0.65);
-            padding: 0 6px;
-        }
-        #term-close-btn:hover {
+        .fab-btn-close:hover {
             color: #ffffff;
+            background: rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
 <body class="pf-v6-m-tabular-nums" hidden="true">
-    <div id="terminal-floating-container">
-        <!-- Floating trigger button (shown when toolbar is hidden) -->
-        <button id="term-toggle-btn" type="button" title="Terminal navigation & copy tools" aria-label="Terminal tools">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="1.5"></circle>
-                <circle cx="12" cy="5" r="1.5"></circle>
-                <circle cx="12" cy="19" r="1.5"></circle>
-            </svg>
-        </button>
-
-        <!-- Expanded controls toolbar -->
-        <div id="terminal-toolbar" class="hidden">
-            <button id="term-top-btn" class="term-tool-btn" type="button" title="Top of history">⤒ Top</button>
-            <button id="term-up-btn" class="term-tool-btn" type="button" title="Scroll up">▲</button>
-            <button id="term-down-btn" class="term-tool-btn" type="button" title="Scroll down">▼</button>
-            <button id="term-end-btn" class="term-tool-btn" type="button" title="Scroll to bottom">⤓</button>
-            <button id="copy-terminal-btn" class="term-tool-btn" type="button" title="Copy output">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;">
+    <div id="term-fab-container">
+        <!-- Floating Popup Menu (Hidden by default) -->
+        <div id="term-fab-menu">
+            <button id="fab-top" class="fab-btn" type="button" title="Scroll to top of history">⤒ Top history</button>
+            <button id="fab-up" class="fab-btn" type="button" title="Page up">▲ Page Up</button>
+            <button id="fab-down" class="fab-btn" type="button" title="Page down">▼ Page Down</button>
+            <button id="fab-end" class="fab-btn" type="button" title="Scroll to latest output">⤓ Bottom</button>
+            <button id="fab-copy" class="fab-btn" type="button" title="Copy output">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                 </svg>
-                <span id="copy-terminal-text" style="pointer-events: none;">Copy</span>
+                <span id="fab-copy-text">Copy</span>
             </button>
-            <button id="term-close-btn" class="term-tool-btn" type="button" title="Hide toolbar">✕</button>
+            <button id="fab-close" class="fab-btn fab-btn-close" type="button">✕ Hide menu</button>
         </div>
+
+        <!-- Floating Trigger Button -->
+        <button id="term-fab-toggle" type="button" title="Terminal tools" aria-label="Terminal tools">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+        </button>
     </div>
 
     <div class="ct-page-fill" id="terminal"></div>
@@ -154,8 +165,8 @@
     <script>
     (function() {
         var xtermInstance = null;
+        var hideMenuTimer = null;
 
-        // Discover xterm instance from React component tree
         function findXterm() {
             if (xtermInstance) return xtermInstance;
             var root = document.getElementById("terminal");
@@ -166,7 +177,7 @@
             if (!fiberKey) return null;
             var node = root[fiberKey];
             var depth = 0;
-            while (node && depth < 20) {
+            while (node && depth < 25) {
                 if (node.stateNode) {
                     if (node.stateNode.terminal_state && node.stateNode.terminal_state.terminal) {
                         xtermInstance = node.stateNode.terminal_state.terminal;
@@ -186,28 +197,29 @@
         function ensureScrollback() {
             var term = findXterm();
             if (term && term.options) {
-                // Configure 1000 lines history buffer
-                if (term.options.scrollback < 1000) {
+                // Ensure at least 1000 lines of scrollback history
+                if (!term.options.scrollback || term.options.scrollback < 1000) {
                     term.options.scrollback = 1000;
                 }
+                term.options.scrollSensitivity = 2;
             }
         }
 
-        function scrollTerminalLines(lines) {
+        function scrollLines(deltaLines) {
             var term = findXterm();
             if (term && typeof term.scrollLines === "function") {
-                term.scrollLines(lines);
+                term.scrollLines(deltaLines);
                 return;
             }
             var viewport = document.querySelector('.xterm-viewport');
             if (viewport) {
-                viewport.scrollTop += (lines * 20);
+                viewport.scrollTop += (deltaLines * 20);
                 viewport.dispatchEvent(new Event('scroll'));
             }
             var target = document.querySelector('.xterm-screen') || document.querySelector('.xterm') || document.getElementById('terminal');
             if (target) {
                 target.dispatchEvent(new WheelEvent('wheel', {
-                    deltaY: lines * 40,
+                    deltaY: deltaLines * 40,
                     deltaMode: 0,
                     bubbles: true,
                     cancelable: true
@@ -215,27 +227,35 @@
             }
         }
 
-        function scrollToExtreme(toTop) {
+        function scrollToTop() {
             var term = findXterm();
-            if (term) {
-                if (toTop && typeof term.scrollToTop === "function") {
-                    term.scrollToTop();
-                    return;
-                }
-                if (!toTop && typeof term.scrollToBottom === "function") {
-                    term.scrollToBottom();
-                    return;
-                }
+            if (term && typeof term.scrollToTop === "function") {
+                term.scrollToTop();
+                return;
             }
             var viewport = document.querySelector('.xterm-viewport');
             if (viewport) {
-                viewport.scrollTop = toTop ? 0 : viewport.scrollHeight;
+                viewport.scrollTop = 0;
                 viewport.dispatchEvent(new Event('scroll'));
             }
-            scrollTerminalLines(toTop ? -500 : 500);
+            scrollLines(-1000);
         }
 
-        // Touch swipe scrolling
+        function scrollToBottom() {
+            var term = findXterm();
+            if (term && typeof term.scrollToBottom === "function") {
+                term.scrollToBottom();
+                return;
+            }
+            var viewport = document.querySelector('.xterm-viewport');
+            if (viewport) {
+                viewport.scrollTop = viewport.scrollHeight;
+                viewport.dispatchEvent(new Event('scroll'));
+            }
+            scrollLines(1000);
+        }
+
+        // Direct touch swipe scrolling on the terminal body
         function setupTouchScroll() {
             var termEl = document.getElementById('terminal');
             if (!termEl) return;
@@ -249,6 +269,7 @@
                     touchStartY = e.touches[0].clientY;
                     touchLastY = touchStartY;
                     accumulated = 0;
+                    closeMenu();
                 }
             }, { passive: true });
 
@@ -259,25 +280,23 @@
                     touchLastY = currentY;
                     accumulated += deltaY;
 
-                    if (Math.abs(accumulated) >= 15) {
-                        var lines = Math.trunc(accumulated / 15);
-                        scrollTerminalLines(lines);
-                        accumulated -= (lines * 15);
+                    if (Math.abs(accumulated) >= 14) {
+                        var lines = Math.trunc(accumulated / 14);
+                        scrollLines(lines);
+                        accumulated -= (lines * 14);
                     }
                 }
             }, { passive: true });
         }
 
-        function getTerminalOutput() {
+        function getOutput() {
             var sel = window.getSelection ? window.getSelection().toString() : "";
             if (sel && sel.trim().length > 0) return sel;
 
-            var a11yItems = document.querySelectorAll('.xterm-accessibility [role="listitem"]');
-            if (a11yItems && a11yItems.length > 0) {
+            var a11y = document.querySelectorAll('.xterm-accessibility [role="listitem"]');
+            if (a11y && a11y.length > 0) {
                 var lines = [];
-                for (var i = 0; i < a11yItems.length; i++) {
-                    lines.push(a11yItems[i].textContent || "");
-                }
+                for (var i = 0; i < a11y.length; i++) lines.push(a11y[i].textContent || "");
                 while (lines.length > 0 && !lines[lines.length - 1].trim()) lines.pop();
                 if (lines.length > 0) return lines.join("\n");
             }
@@ -285,9 +304,7 @@
             var rows = document.querySelectorAll('.xterm-rows > div');
             if (rows && rows.length > 0) {
                 var lines = [];
-                for (var i = 0; i < rows.length; i++) {
-                    lines.push(rows[i].textContent || "");
-                }
+                for (var i = 0; i < rows.length; i++) lines.push(rows[i].textContent || "");
                 while (lines.length > 0 && !lines[lines.length - 1].trim()) lines.pop();
                 if (lines.length > 0) return lines.join("\n");
             }
@@ -296,90 +313,100 @@
             return container ? container.innerText || "" : "";
         }
 
-        function copyText(text) {
-            if (!text) return Promise.resolve(false);
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                return navigator.clipboard.writeText(text).then(function() { return true; }).catch(function() { return execCopy(text); });
+        function copyOutput() {
+            var text = getOutput();
+            var txt = document.getElementById("fab-copy-text");
+            if (!text || !text.trim()) {
+                if (txt) { txt.textContent = "Empty"; setTimeout(function() { txt.textContent = "Copy"; }, 1500); }
+                return;
             }
-            return Promise.resolve(execCopy(text));
+
+            var p = navigator.clipboard && navigator.clipboard.writeText
+                ? navigator.clipboard.writeText(text)
+                : new Promise(function(resolve, reject) {
+                    var ta = document.createElement("textarea");
+                    ta.value = text;
+                    ta.style.position = "fixed";
+                    ta.style.left = "-9999px";
+                    document.body.appendChild(ta);
+                    ta.select();
+                    var ok = false;
+                    try { ok = document.execCommand("copy"); } catch (e) {}
+                    document.body.removeChild(ta);
+                    ok ? resolve() : reject();
+                });
+
+            p.then(function() {
+                if (txt) {
+                    txt.textContent = "Copied!";
+                    setTimeout(function() { txt.textContent = "Copy"; closeMenu(); }, 1500);
+                }
+            }).catch(function() {
+                if (txt) {
+                    txt.textContent = "Failed";
+                    setTimeout(function() { txt.textContent = "Copy"; }, 1500);
+                }
+            });
         }
 
-        function execCopy(text) {
-            var ta = document.createElement("textarea");
-            ta.value = text;
-            ta.style.position = "fixed";
-            ta.style.left = "-9999px";
-            document.body.appendChild(ta);
-            ta.select();
-            var ok = false;
-            try { ok = document.execCommand("copy"); } catch (e) {}
-            document.body.removeChild(ta);
-            return ok;
+        function toggleMenu() {
+            var menu = document.getElementById("term-fab-menu");
+            if (!menu) return;
+            if (menu.style.display === "flex") {
+                closeMenu();
+            } else {
+                openMenu();
+            }
         }
 
-        window.addEventListener("DOMContentLoaded", function() {
+        function openMenu() {
+            var menu = document.getElementById("term-fab-menu");
+            var toggle = document.getElementById("term-fab-toggle");
+            if (!menu) return;
+            menu.style.display = "flex";
+            if (toggle) toggle.style.opacity = "1";
+            ensureScrollback();
+
+            clearTimeout(hideMenuTimer);
+            hideMenuTimer = setTimeout(closeMenu, 6000);
+        }
+
+        function closeMenu() {
+            var menu = document.getElementById("term-fab-menu");
+            var toggle = document.getElementById("term-fab-toggle");
+            if (!menu) return;
+            menu.style.display = "none";
+            if (toggle) toggle.style.opacity = "0.45";
+            clearTimeout(hideMenuTimer);
+        }
+
+        function init() {
             setupTouchScroll();
 
-            var toggleBtn = document.getElementById("term-toggle-btn");
-            var toolbar = document.getElementById("terminal-toolbar");
-            var closeBtn = document.getElementById("term-close-btn");
+            var toggle = document.getElementById("term-fab-toggle");
+            var closeBtn = document.getElementById("fab-close");
+            var btnTop = document.getElementById("fab-top");
+            var btnUp = document.getElementById("fab-up");
+            var btnDown = document.getElementById("fab-down");
+            var btnEnd = document.getElementById("fab-end");
+            var btnCopy = document.getElementById("fab-copy");
 
-            function showToolbar() {
-                toolbar.classList.remove("hidden");
-                toggleBtn.style.display = "none";
-                ensureScrollback();
-            }
+            if (toggle) toggle.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); toggleMenu(); });
+            if (closeBtn) closeBtn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); closeMenu(); });
+            if (btnTop) btnTop.addEventListener("click", function(e) { e.preventDefault(); scrollToTop(); });
+            if (btnEnd) btnEnd.addEventListener("click", function(e) { e.preventDefault(); scrollToBottom(); });
+            if (btnUp) btnUp.addEventListener("click", function(e) { e.preventDefault(); scrollLines(-10); });
+            if (btnDown) btnDown.addEventListener("click", function(e) { e.preventDefault(); scrollLines(10); });
+            if (btnCopy) btnCopy.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); copyOutput(); });
 
-            function hideToolbar() {
-                toolbar.classList.add("hidden");
-                toggleBtn.style.display = "flex";
-            }
+            setInterval(ensureScrollback, 1500);
+        }
 
-            if (toggleBtn) toggleBtn.addEventListener("click", showToolbar);
-            if (closeBtn) closeBtn.addEventListener("click", hideToolbar);
-
-            // Navigation
-            var topBtn = document.getElementById("term-top-btn");
-            var upBtn = document.getElementById("term-up-btn");
-            var downBtn = document.getElementById("term-down-btn");
-            var endBtn = document.getElementById("term-end-btn");
-
-            if (topBtn) topBtn.addEventListener("click", function(e) { e.preventDefault(); scrollToExtreme(true); });
-            if (endBtn) endBtn.addEventListener("click", function(e) { e.preventDefault(); scrollToExtreme(false); });
-            if (upBtn) upBtn.addEventListener("click", function(e) { e.preventDefault(); scrollTerminalLines(-8); });
-            if (downBtn) downBtn.addEventListener("click", function(e) { e.preventDefault(); scrollTerminalLines(8); });
-
-            // Copy
-            var btn = document.getElementById("copy-terminal-btn");
-            var txt = document.getElementById("copy-terminal-text");
-            if (btn) {
-                btn.addEventListener("click", function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var content = getTerminalOutput();
-                    if (!content || !content.trim()) {
-                        txt.textContent = "Empty";
-                        setTimeout(function() { txt.textContent = "Copy"; }, 1500);
-                        return;
-                    }
-                    copyText(content).then(function(ok) {
-                        if (ok) {
-                            txt.textContent = "Copied!";
-                            btn.style.borderColor = "#3e8635";
-                            setTimeout(function() {
-                                txt.textContent = "Copy";
-                                btn.style.borderColor = "rgba(255, 255, 255, 0.15)";
-                            }, 2000);
-                        } else {
-                            txt.textContent = "Failed";
-                            setTimeout(function() { txt.textContent = "Copy"; }, 1500);
-                        }
-                    });
-                });
-            }
-
-            setInterval(ensureScrollback, 2000);
-        });
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", init);
+        } else {
+            init();
+        }
     })();
     </script>
 </body>
