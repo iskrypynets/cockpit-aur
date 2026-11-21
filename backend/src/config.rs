@@ -132,6 +132,18 @@ fn security_advisories_default() -> bool {
     true
 }
 
+fn default_aur_cache_ttl() -> u64 {
+    1800 // 30 minutes
+}
+
+fn default_aur_upgrade_timeout() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_aur_rpc_timeout() -> u64 {
+    30 // 30 seconds
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
@@ -140,6 +152,12 @@ pub struct AppConfig {
     pub schedule: ScheduleConfig,
     #[serde(default = "security_advisories_default")]
     pub security_advisories: bool,
+    #[serde(default = "default_aur_cache_ttl")]
+    pub aur_cache_ttl_secs: u64,
+    #[serde(default = "default_aur_upgrade_timeout")]
+    pub aur_upgrade_timeout_secs: u64,
+    #[serde(default = "default_aur_rpc_timeout")]
+    pub aur_rpc_timeout_secs: u64,
     // Round-trip keys this binary doesn't know about (e.g. fields added by a
     // newer version) instead of dropping them on the next update() rewrite.
     #[serde(flatten)]
@@ -160,6 +178,9 @@ impl Default for AppConfig {
             ignored_packages: Vec::new(),
             schedule: ScheduleConfig::default(),
             security_advisories: security_advisories_default(),
+            aur_cache_ttl_secs: default_aur_cache_ttl(),
+            aur_upgrade_timeout_secs: default_aur_upgrade_timeout(),
+            aur_rpc_timeout_secs: default_aur_rpc_timeout(),
             extra: serde_json::Map::new(),
         }
     }
@@ -405,6 +426,9 @@ impl From<&AppConfig> for IgnoredPackagesResponse {
 #[ts(export, export_to = "../../src/bindings/index.ts")]
 pub struct SettingsResponse {
     pub security_advisories: Option<bool>,
+    pub aur_cache_ttl_secs: Option<u64>,
+    pub aur_upgrade_timeout_secs: Option<u64>,
+    pub aur_rpc_timeout_secs: Option<u64>,
 }
 
 #[derive(Serialize, TS)]

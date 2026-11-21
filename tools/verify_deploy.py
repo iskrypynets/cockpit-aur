@@ -215,10 +215,15 @@ def verify(target_name: str, remote: str | None, expected_ver: str) -> bool:
         detail = f"exit {code}: {stderr[:100]}"
     check("Backend preflight-upgrade includes AUR packages in transaction preview", preflight_ok, detail)
 
+    # 15. Check AUR operation status and cache commands
+    code, stdout, stderr = run_target_cmd("/usr/libexec/cockpit-aur/cockpit-aur-backend aur-operation-status", remote)
+    status_ok = code == 0 and "status" in stdout
+    check("Backend aur-operation-status reports valid status JSON", status_ok)
+
     # Summary
     print("-" * 60)
     if not failures:
-        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {14} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
+        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {15} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
         return True
     else:
         print(f"{Colors.RED}{Colors.BOLD}❌ DEPLOYMENT VERIFICATION FAILED FOR [{target_name}] ({len(failures)} failures):{Colors.RESET}")

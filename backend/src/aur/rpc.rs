@@ -1,6 +1,10 @@
 use anyhow::{Context, Result, bail};
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
-use std::time::Duration;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::models::{AurRpcPackage, AurRpcResponse};
 
@@ -8,10 +12,64 @@ const AUR_BASE_URL: &str = "https://aur.archlinux.org";
 const MAX_AUR_RPC_BYTES: usize = 4 * 1024 * 1024; // 4 MB max RPC response
 const MAX_PKGBUILD_BYTES: usize = 1024 * 1024; // 1 MB max PKGBUILD script
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CachedPackage {
+    pub package: AurRpcPackage,
+    pub fetched_at: u64,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct AurRpcCache {
+    pub packages: HashMap<String, CachedPackage>,
+}
+
+fn cache_path() -> PathBuf {
+    if let Ok(home) = std::env::var("HOME") {
+        let dir = PathBuf::from(home).join(".cache/cockpit-aur");
+        let _ = fs::create_dir_all(&dir);
+        dir.join("rpc-cache.json")
+    } else {
+        PathBuf::from("/tmp/cockpit-aur-rpc-cache.json")
+    }
+}
+
+fn current_timestamp() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+fn load_cache() -> AurRpcCache {
+    let path = cache_path();
+    if let Ok(data) = fs::read_to_string(&path) {
+        if let Ok(cache) = serde_json::from_str::<AurRpcCache>(&data) {
+            return cache;
+        }
+    }
+    AurRpcCache::default()
+}
+
+fn save_cache(cache: &AurRpcCache) {
+    let path = cache_path();
+    let _ = crate::util::write_json_atomic(&path, cache);
+}
+
+pub fn clear_aur_cache() -> Result<()> {
+    let path = cache_path();
+    if path.exists() {
+        let _ = fs::remove_file(path);
+    }
+    Ok(())
+}
+
 fn aur_http_client() -> arch_http_client::Client {
+    let config = crate::config::AppConfig::load().unwrap_or_default();
+    let rpc_timeout = Duration::from_secs(config.aur_rpc_timeout_secs.max(5));
+    let connect_timeout = Duration::from_secs(10.min(config.aur_rpc_timeout_secs));
     arch_http_client::Client::new(arch_http_client::Options {
-        timeout: Duration::from_secs(20),
-        connect_timeout: Duration::from_secs(10),
+        timeout: rpc_timeout,
+        connect_timeout,
         max_body: MAX_AUR_RPC_BYTES,
         user_agent: Some("pacman/7.0.0 (x86_64) cockpit-aur/0.5.3".to_string()),
         ..arch_http_client::Options::default()
@@ -41,7 +99,7 @@ pub fn search_aur(query: &str) -> Result<Vec<AurRpcPackage>> {
     Ok(rpc_res.results)
 }
 
-/// Fetch package metadata for a batch of package names using AUR RPC v5
+/// Fetch package metadata for a batch of package names using AUR RPC v5 with on-disk caching
 pub fn info_aur(names: &[&str]) -> Result<Vec<AurRpcPackage>> {
     if names.is_empty() {
         return Ok(Vec::new());
@@ -58,11 +116,33 @@ pub fn info_aur(names: &[&str]) -> Result<Vec<AurRpcPackage>> {
         return Ok(Vec::new());
     }
 
-    let client = aur_http_client();
+    let config = crate::config::AppConfig::load().unwrap_or_default();
+    let ttl = config.aur_cache_ttl_secs;
+    let now = current_timestamp();
+
+    let mut cache = load_cache();
     let mut all_results = Vec::new();
+    let mut missing_names = Vec::new();
+
+    for name in valid_names {
+        if let Some(entry) = cache.packages.get(name) {
+            if now.saturating_sub(entry.fetched_at) < ttl {
+                all_results.push(entry.package.clone());
+                continue;
+            }
+        }
+        missing_names.push(name);
+    }
+
+    if missing_names.is_empty() {
+        return Ok(all_results);
+    }
+
+    let client = aur_http_client();
+    let mut newly_fetched = false;
 
     // Batch in chunks of 50 packages to keep URL query strings safely under limits
-    for chunk in valid_names.chunks(50) {
+    for chunk in missing_names.chunks(50) {
         let mut query_params = Vec::new();
         for name in chunk {
             let encoded = utf8_percent_encode(name, NON_ALPHANUMERIC).to_string();
@@ -87,7 +167,21 @@ pub fn info_aur(names: &[&str]) -> Result<Vec<AurRpcPackage>> {
             bail!("AUR RPC error: {err}");
         }
 
-        all_results.extend(rpc_res.results);
+        for pkg in rpc_res.results {
+            cache.packages.insert(
+                pkg.name.clone(),
+                CachedPackage {
+                    package: pkg.clone(),
+                    fetched_at: now,
+                },
+            );
+            all_results.push(pkg);
+            newly_fetched = true;
+        }
+    }
+
+    if newly_fetched {
+        save_cache(&cache);
     }
 
     Ok(all_results)

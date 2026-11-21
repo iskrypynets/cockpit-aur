@@ -13,14 +13,26 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 use crate::models::StreamEvent;
 
 static CANCELLED: AtomicBool = AtomicBool::new(false);
+static EXPLICIT_CANCEL: AtomicBool = AtomicBool::new(false);
+static CHANNEL_CLOSED: AtomicBool = AtomicBool::new(false);
 
 pub fn is_cancelled() -> bool {
     CANCELLED.load(AtomicOrdering::SeqCst)
 }
 
+pub fn is_explicit_cancel() -> bool {
+    EXPLICIT_CANCEL.load(AtomicOrdering::SeqCst)
+}
+
+pub fn is_channel_closed() -> bool {
+    CHANNEL_CLOSED.load(AtomicOrdering::SeqCst)
+}
+
 #[cfg(test)]
 pub fn reset_cancelled() {
     CANCELLED.store(false, AtomicOrdering::SeqCst);
+    EXPLICIT_CANCEL.store(false, AtomicOrdering::SeqCst);
+    CHANNEL_CLOSED.store(false, AtomicOrdering::SeqCst);
 }
 
 // libalpm briefly sets the process umask to 0, so a parallel test's default-mode
@@ -34,6 +46,11 @@ pub(crate) fn private_dir(path: &Path) {
 
 /// Requests cancellation at the next safe checkpoint.
 pub fn request_cancel() {
+    CANCELLED.store(true, AtomicOrdering::SeqCst);
+}
+
+pub fn request_explicit_cancel() {
+    EXPLICIT_CANCEL.store(true, AtomicOrdering::SeqCst);
     CANCELLED.store(true, AtomicOrdering::SeqCst);
 }
 
@@ -61,6 +78,7 @@ pub fn spawn_cancel_listener() -> Result<()> {
                 line.clear();
                 match reader.read_line(&mut line) {
                     Ok(0) | Err(_) => {
+                        CHANNEL_CLOSED.store(true, AtomicOrdering::SeqCst);
                         request_cancel();
                         journal_note(
                             "control channel closed; \
@@ -71,7 +89,7 @@ pub fn spawn_cancel_listener() -> Result<()> {
                     }
                     Ok(_) => {
                         if line.trim() == "cancel" {
-                            request_cancel();
+                            request_explicit_cancel();
                         }
                     }
                 }

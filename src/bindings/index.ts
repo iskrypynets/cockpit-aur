@@ -235,7 +235,7 @@ export type ServicesStatus = { restart_required: boolean, services: Array<Servic
  */
 scan_incomplete: boolean, };
 
-export type SettingsResponse = { security_advisories: boolean | null, };
+export type SettingsResponse = { security_advisories: boolean | null, aur_cache_ttl_secs: bigint | null, aur_upgrade_timeout_secs: bigint | null, aur_rpc_timeout_secs: bigint | null, };
 
 export type SettingsSetResponse = { success: boolean, message: string, };
 

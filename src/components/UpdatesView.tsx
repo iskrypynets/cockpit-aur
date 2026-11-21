@@ -84,6 +84,8 @@ import {
   getActiveTransaction,
   runUpgrade,
   upgradeAurPackages,
+  getAurOperationStatus,
+  getAurOperationLog,
   syncDatabase,
   preflightUpgrade,
   formatSize,
@@ -1117,7 +1119,46 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
   const hasInitializedSelection = useRef(false);
   const seenNamesRef = useRef<Set<string>>(new Set());
 
-  // Initialize selected packages when updates load, excluding ignored packages
+  // Check if an AUR upgrade is currently in progress or finished while disconnected/locked
+  useEffect(() => {
+    let active = true;
+    let interval: ReturnType<typeof setInterval> | undefined;
+
+    getAurOperationStatus()
+      .then((status) => {
+        if (!active) return;
+        if (status.status === "running") {
+          setUpgrading(true);
+          getAurOperationLog().then((data) => {
+            if (active && data.log) setUpgradeLog(data.log);
+          });
+          interval = setInterval(() => {
+            getAurOperationStatus().then((st) => {
+              if (!active) return;
+              getAurOperationLog().then((data) => {
+                if (active && data.log) setUpgradeLog(data.log);
+              });
+              if (st.status !== "running") {
+                if (interval) clearInterval(interval);
+                setUpgrading(false);
+                loadUpdates();
+                if (st.status === "completed") {
+                  announce("AUR upgrade completed successfully");
+                } else if (st.status === "failed") {
+                  announce("AUR upgrade failed", { assertive: true });
+                }
+              }
+            }).catch(() => {});
+          }, 2000);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+      if (interval) clearInterval(interval);
+    };
+  }, []);
   // On subsequent loads, preserve user selections
   useEffect(() => {
     const seen = seenNamesRef.current;

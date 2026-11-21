@@ -363,8 +363,45 @@ export async function getSettings(): Promise<SettingsResponse> {
   return runBackend<SettingsResponse>("get-settings", [], { superuser: "none" });
 }
 
+export async function setSettings(settings: {
+  security_advisories?: boolean;
+  aur_cache_ttl_secs?: number;
+  aur_upgrade_timeout_secs?: number;
+  aur_rpc_timeout_secs?: number;
+}): Promise<SettingsSetResponse> {
+  return runBackend<SettingsSetResponse>("set-settings", [
+    settings.security_advisories !== undefined ? String(settings.security_advisories) : "",
+    settings.aur_cache_ttl_secs !== undefined ? String(settings.aur_cache_ttl_secs) : "",
+    settings.aur_upgrade_timeout_secs !== undefined ? String(settings.aur_upgrade_timeout_secs) : "",
+    settings.aur_rpc_timeout_secs !== undefined ? String(settings.aur_rpc_timeout_secs) : "",
+  ]);
+}
+
 export async function setSecurityAdvisories(enabled: boolean): Promise<SettingsSetResponse> {
-  return runBackend<SettingsSetResponse>("set-settings", [String(enabled)]);
+  return setSettings({ security_advisories: enabled });
+}
+
+export async function clearAurCache(): Promise<{ success: boolean; message: string }> {
+  return runBackend<{ success: boolean; message: string }>("clear-aur-cache", [], { superuser: "none" });
+}
+
+export interface AurOperationStatus {
+  status: "idle" | "running" | "completed" | "failed" | "cancelled";
+  operation: string;
+  target?: string;
+  pid?: number;
+  started_at: number;
+  updated_at: number;
+  exit_code?: number;
+  error?: string;
+}
+
+export async function getAurOperationStatus(): Promise<AurOperationStatus> {
+  return runBackend<AurOperationStatus>("aur-operation-status", [], { superuser: "none" });
+}
+
+export async function getAurOperationLog(): Promise<{ log: string }> {
+  return runBackend<{ log: string }>("aur-operation-log", [], { superuser: "none" });
 }
 
 export async function getPackageInfo(name: string): Promise<PackageDetails> {
@@ -1255,8 +1292,7 @@ export function upgradeAurPackages(
   callbacks: UpgradeCallbacks,
   helper?: string,
 ): StreamingHandle {
-  const args: string[] = [];
-  if (helper) args.push(helper);
+  const args: string[] = [helper || ""];
   if (callbacks.timeout !== undefined) args.push(String(callbacks.timeout));
   return runStreamingBackend(
     "aur-upgrade",

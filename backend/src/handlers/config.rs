@@ -55,13 +55,30 @@ pub fn get_settings() -> Result<()> {
     let (config, degraded) = AppConfig::load_degraded()?;
     emit_json(&SettingsResponse {
         security_advisories: (!degraded).then_some(config.security_advisories),
+        aur_cache_ttl_secs: (!degraded).then_some(config.aur_cache_ttl_secs),
+        aur_upgrade_timeout_secs: (!degraded).then_some(config.aur_upgrade_timeout_secs),
+        aur_rpc_timeout_secs: (!degraded).then_some(config.aur_rpc_timeout_secs),
     })
 }
 
-pub fn set_settings(security_advisories: Option<bool>) -> Result<()> {
+pub fn set_settings(
+    security_advisories: Option<bool>,
+    aur_cache_ttl_secs: Option<u64>,
+    aur_upgrade_timeout_secs: Option<u64>,
+    aur_rpc_timeout_secs: Option<u64>,
+) -> Result<()> {
     AppConfig::update(|config| {
         if let Some(enabled) = security_advisories {
             config.security_advisories = enabled;
+        }
+        if let Some(ttl) = aur_cache_ttl_secs {
+            config.aur_cache_ttl_secs = ttl;
+        }
+        if let Some(timeout) = aur_upgrade_timeout_secs {
+            config.aur_upgrade_timeout_secs = timeout;
+        }
+        if let Some(timeout) = aur_rpc_timeout_secs {
+            config.aur_rpc_timeout_secs = timeout;
         }
         Ok(())
     })?;

@@ -6,8 +6,10 @@ pub mod updates;
 
 pub use helper::detect_helper;
 pub use models::{AurHelperInfo, AurPackageDetails, AurPkgbuildResponse};
-pub use rpc::{fetch_pkgbuild, info_aur, search_aur};
-pub use runner::{AurOperation, run_aur_operation};
+pub use rpc::{clear_aur_cache, fetch_pkgbuild, info_aur, search_aur};
+pub use runner::{
+    AurOperation, get_operation_log, get_operation_status, run_aur_operation,
+};
 pub use updates::find_aur_updates;
 
 use crate::alpm::get_handle;

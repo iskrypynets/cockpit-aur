@@ -11,6 +11,7 @@ import {
 import { UpdateInfo, KeyringStatusResponse, formatSize, getAurHelper, type AurHelperInfo } from "../api";
 import { StatBox } from "./StatBox";
 import { kebabToggle } from "./KebabToggle";
+import { SettingsModal } from "./SettingsModal";
 import { useAdminPermission } from "../hooks/useAdminPermission";
 import { useNavigation } from "../contexts/NavigationContext";
 import { SIGNOFF_TILE_FILTER } from "./SignoffsView";
@@ -42,6 +43,7 @@ export const SystemOverviewCard: React.FC<{
   const isAdmin = useAdminPermission();
   const mayToggle = isAdmin === true && !securityToggleBusy && securityEnabled !== null;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [aurHelper, setAurHelper] = useState<AurHelperInfo | null>(null);
 
   useEffect(() => {
@@ -72,6 +74,15 @@ export const SystemOverviewCard: React.FC<{
           onClick={() => { if (mayToggle) onSetSecurityEnabled(!securityEnabled); }}
         >
           Check security advisories
+        </DropdownItem>
+        <DropdownItem
+          onClick={() => {
+            setMenuOpen(false);
+            setSettingsModalOpen(true);
+          }}
+          description="Configure AUR cache TTL, operation timeouts, and network settings"
+        >
+          AUR & Timeout Settings...
         </DropdownItem>
       </DropdownList>
     </Dropdown>
@@ -173,6 +184,7 @@ export const SystemOverviewCard: React.FC<{
           }
         />
       </div>
+      <SettingsModal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} />
     </CardBody>
   </Card>
   );

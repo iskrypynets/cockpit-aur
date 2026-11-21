@@ -151,6 +151,9 @@ const COMMANDS: &[&str] = &[
     "delete-repo-backup",
     "dismissal-state",
     "mark-dismissed",
+    "aur-operation-status",
+    "aur-operation-log",
+    "clear-aur-cache",
 ];
 
 const USAGE: &str = r#"Usage: cockpit-aur-backend <command> [args]
@@ -164,6 +167,9 @@ Commands:
                          Install an AUR package using yay or paru
   aur-upgrade [helper] [timeout]
                          Upgrade installed AUR packages using yay or paru
+  aur-operation-status   Get current background AUR operation status
+  aur-operation-log      Read logs of current or recent background AUR operation
+  clear-aur-cache        Clear cached AUR RPC metadata
   undo-repo-save TIMESTAMP REVISION
                          Undo a repository save if it is still current
   undo-mirror-save TIMESTAMP REVISION
@@ -572,14 +578,22 @@ fn main() {
             )
         }
         "aur-upgrade" => {
-            let helper = arg_opt(&args, 2);
-            let timeout = args.get(3).and_then(|s| s.parse().ok());
+            let helper = arg_opt(&args, 2).filter(|s| !s.is_empty());
+            let timeout = args.get(3).filter(|s| !s.is_empty()).and_then(|s| s.parse().ok());
             cockpit_aur_backend::aur::run_aur_operation(
                 cockpit_aur_backend::aur::AurOperation::Upgrade,
                 helper.as_deref(),
                 timeout,
             )
         }
+        "aur-operation-status" => cockpit_aur_backend::aur::get_operation_status(),
+        "aur-operation-log" => cockpit_aur_backend::aur::get_operation_log(),
+        "clear-aur-cache" => cockpit_aur_backend::aur::clear_aur_cache().and_then(|_| {
+            cockpit_aur_backend::util::emit_json(&serde_json::json!({
+                "success": true,
+                "message": "AUR cache cleared"
+            }))
+        }),
         "search" => {
             if args.len() < 3 {
                 eprintln!("Error: search requires a query");
@@ -685,17 +699,28 @@ fn main() {
         "list-ignored" => list_ignored(),
         "get-settings" => get_settings(),
         "set-settings" => {
-            let security = match args.get(2) {
-                None => None,
-                Some(s) => match parse_bool_arg(s) {
-                    Some(b) => Some(b),
-                    None => {
-                        eprintln!("Error: set-settings expects true or false");
-                        std::process::exit(1);
-                    }
-                },
-            };
-            set_settings(security)
+            let security = args
+                .get(2)
+                .filter(|s| !s.is_empty())
+                .and_then(|s| parse_bool_arg(s));
+            let aur_cache_ttl = args
+                .get(3)
+                .filter(|s| !s.is_empty())
+                .and_then(|s| s.parse().ok());
+            let aur_upgrade_timeout = args
+                .get(4)
+                .filter(|s| !s.is_empty())
+                .and_then(|s| s.parse().ok());
+            let aur_rpc_timeout = args
+                .get(5)
+                .filter(|s| !s.is_empty())
+                .and_then(|s| s.parse().ok());
+            set_settings(
+                security,
+                aur_cache_ttl,
+                aur_upgrade_timeout,
+                aur_rpc_timeout,
+            )
         }
         "add-ignored" => {
             if args.len() < 3 {
