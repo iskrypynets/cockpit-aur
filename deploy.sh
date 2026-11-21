@@ -220,6 +220,9 @@ deploy_local() {
         sudo cp -f tools/overview-index.html /usr/share/cockpit/systemd/index.html
         sudo chmod 644 /usr/share/cockpit/systemd/index.html
     fi
+    if [ -f "tools/patch_overview.py" ]; then
+        sudo python3 tools/patch_overview.py
+    fi
 
     # Restart Cockpit
     echo "Restarting Cockpit service & socket..."
@@ -235,9 +238,9 @@ deploy_plex() {
     wait_for_safe_deploy "remote"
 
     echo -e "\n\033[1;34m[2/3] Installing package on REMOTE host (plex: $REMOTE_PLEX)...\033[0m"
-    # Transfer package, terminal.html, and overview-index.html to /tmp
-    echo "Transferring $PKG_FILE, terminal.html, and overview-index.html to $REMOTE_PLEX:/tmp/..."
-    scp -o BatchMode=yes "$PKG_FILE" tools/terminal.html tools/overview-index.html "${REMOTE_PLEX}:/tmp/"
+    # Transfer package, terminal.html, overview-index.html, and patch_overview.py to /tmp
+    echo "Transferring $PKG_FILE, terminal.html, overview-index.html, and patch_overview.py to $REMOTE_PLEX:/tmp/..."
+    scp -o BatchMode=yes "$PKG_FILE" tools/terminal.html tools/overview-index.html tools/patch_overview.py "${REMOTE_PLEX}:/tmp/"
 
     # Install on remote, remove user overrides, install terminal & overview enhancements, restart service
     echo "Installing package on remote via pacman -U and configuring enhancements..."
@@ -258,6 +261,10 @@ if [ -f "/tmp/overview-index.html" ]; then
     sudo cp -f /tmp/overview-index.html /usr/share/cockpit/systemd/index.html
     sudo chmod 644 /usr/share/cockpit/systemd/index.html
     rm -f /tmp/overview-index.html
+fi
+if [ -f "/tmp/patch_overview.py" ]; then
+    sudo python3 /tmp/patch_overview.py
+    rm -f /tmp/patch_overview.py
 fi
 sudo systemctl restart cockpit.service cockpit.socket
 EOF

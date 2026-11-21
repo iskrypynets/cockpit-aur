@@ -222,11 +222,11 @@ def verify(target_name: str, remote: str | None, expected_ver: str) -> bool:
 
     # 16. Check Cockpit Overview MOTD colorizer enhancement
     code, stdout, stderr = run_target_cmd(
-        "grep -q 'colorizeMotd' /usr/share/cockpit/systemd/index.html && "
-        "grep -q 'ansiToHtml' /usr/share/cockpit/systemd/index.html",
+        "python3 -c 'import gzip; c = gzip.open(\"/usr/share/cockpit/systemd/overview.js.gz\", \"rt\", errors=\"ignore\").read(); assert \"dangerouslySetInnerHTML\" in c and \"motd\" in c' && "
+        "grep -q '#motd' /usr/share/cockpit/systemd/index.html",
         remote,
     )
-    check("Cockpit overview MOTD ANSI colorizer", code == 0)
+    check("Cockpit overview MOTD native React ANSI colorizer", code == 0)
 
     # Summary
     print("-" * 60)
