@@ -128,6 +128,9 @@ rm -rf "\$HOME/.local/share/cockpit/aur"
 sudo pacman -U --noconfirm "/tmp/${PKG_FILE}"
 rm -f "/tmp/${PKG_FILE}"
 if [ -f "/tmp/terminal.html" ]; then
+    if [ -f "/usr/share/cockpit/systemd/terminal.css.gz.orig" ]; then
+        sudo cp -f "/usr/share/cockpit/systemd/terminal.css.gz.orig" "/usr/share/cockpit/systemd/terminal.css.gz"
+    fi
     sudo cp -f /tmp/terminal.html /usr/share/cockpit/systemd/terminal.html
     sudo chmod 644 /usr/share/cockpit/systemd/terminal.html
     rm -f /tmp/terminal.html

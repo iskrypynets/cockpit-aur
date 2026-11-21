@@ -1,5 +1,4 @@
 use anyhow::{Context, Result, anyhow};
-use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -156,22 +155,82 @@ pub fn run_aur_operation(
     let stderr = child.stderr.take().context("Failed to open child stderr")?;
 
     let stdout_handle = std::thread::spawn(move || {
-        let reader = BufReader::new(stdout);
-        for l in reader.lines().map_while(Result::ok) {
-            emit_event(&StreamEvent::Log {
-                level: "info".to_string(),
-                message: format!("[AUR] {l}"),
-            });
+        use std::io::Read;
+        let mut reader = stdout;
+        let mut buf = [0u8; 1024];
+        let mut line_buf = Vec::new();
+        let mut last_line = String::new();
+
+        while let Ok(n) = reader.read(&mut buf) {
+            if n == 0 {
+                break;
+            }
+            for &b in &buf[..n] {
+                if b == b'\n' || b == b'\r' {
+                    if !line_buf.is_empty() {
+                        let s = String::from_utf8_lossy(&line_buf).trim().to_string();
+                        line_buf.clear();
+                        if !s.is_empty() && s != last_line {
+                            last_line = s.clone();
+                            emit_event(&StreamEvent::Log {
+                                level: "info".to_string(),
+                                message: format!("[AUR] {s}"),
+                            });
+                        }
+                    }
+                } else {
+                    line_buf.push(b);
+                }
+            }
+        }
+        if !line_buf.is_empty() {
+            let s = String::from_utf8_lossy(&line_buf).trim().to_string();
+            if !s.is_empty() && s != last_line {
+                emit_event(&StreamEvent::Log {
+                    level: "info".to_string(),
+                    message: format!("[AUR] {s}"),
+                });
+            }
         }
     });
 
     let stderr_handle = std::thread::spawn(move || {
-        let reader = BufReader::new(stderr);
-        for l in reader.lines().map_while(Result::ok) {
-            emit_event(&StreamEvent::Log {
-                level: "warn".to_string(),
-                message: format!("[AUR] {l}"),
-            });
+        use std::io::Read;
+        let mut reader = stderr;
+        let mut buf = [0u8; 1024];
+        let mut line_buf = Vec::new();
+        let mut last_line = String::new();
+
+        while let Ok(n) = reader.read(&mut buf) {
+            if n == 0 {
+                break;
+            }
+            for &b in &buf[..n] {
+                if b == b'\n' || b == b'\r' {
+                    if !line_buf.is_empty() {
+                        let s = String::from_utf8_lossy(&line_buf).trim().to_string();
+                        line_buf.clear();
+                        if !s.is_empty() && s != last_line {
+                            last_line = s.clone();
+                            emit_event(&StreamEvent::Log {
+                                level: "warn".to_string(),
+                                message: format!("[AUR] {s}"),
+                            });
+                        }
+                    }
+                } else {
+                    line_buf.push(b);
+                }
+            }
+        }
+        if !line_buf.is_empty() {
+            let s = String::from_utf8_lossy(&line_buf).trim().to_string();
+            if !s.is_empty() && s != last_line {
+                emit_event(&StreamEvent::Log {
+                    level: "warn".to_string(),
+                    message: format!("[AUR] {s}"),
+                });
+            }
         }
     });
 

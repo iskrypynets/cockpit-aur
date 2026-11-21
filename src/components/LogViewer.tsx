@@ -189,7 +189,30 @@ export const LogViewer: React.FC<LogViewerProps> = ({
 
   const lines = useMemo(() => {
     if (!log) return null;
-    return log.split("\n");
+    const rawLines = log.split(/\r?\n|\r/);
+    const result: string[] = [];
+
+    // Helper to detect download / fetch / compile progress lines (curl, git, pacman progress meters)
+    const isProgressLine = (text: string) => {
+      return (
+        /\[AUR\]\s*(?:\d+\s+[\d.]+[KkMmGg]?|\s*%\s*Total|\s*Dload\s+Upload|(?:Receiving|Resolving|Compressing|Writing)\s+objects:\s*\d+%)/i.test(text) ||
+        /^\s*(?:\d+\s+[\d.]+[KkMmGg]?|\s*%\s*Total|\s*Dload\s+Upload|(?:Receiving|Resolving|Compressing|Writing)\s+objects:\s*\d+%)/i.test(text)
+      );
+    };
+
+    for (const raw of rawLines) {
+      const clean = raw.trimEnd();
+      if (!clean) continue;
+
+      if (isProgressLine(clean) && result.length > 0 && isProgressLine(result[result.length - 1])) {
+        // Overwrite previous progress line in place so download progress updates cleanly on a single line
+        result[result.length - 1] = clean;
+      } else {
+        result.push(clean);
+      }
+    }
+
+    return result;
   }, [log]);
 
   const lineCount = lines ? (lines[lines.length - 1] === "" ? lines.length - 1 : lines.length) : 0;

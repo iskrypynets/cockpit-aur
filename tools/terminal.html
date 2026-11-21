@@ -40,9 +40,10 @@
         .terminal-group {
             display: flex !important;
             align-items: center !important;
-            justify-content: space-between !important;
+            justify-content: flex-start !important;
             flex-wrap: wrap !important;
             padding: 6px 12px !important;
+            min-height: 38px !important;
             background: #111215 !important;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
             box-sizing: border-box !important;
@@ -62,7 +63,8 @@
         }
 
         /* Shown only when user explicitly toggles it via Settings button */
-        #toolbar.settings-visible, .terminal-group > .pf-v6-c-toolbar.settings-visible {
+        body.show-settings #toolbar,
+        body.show-settings .terminal-group > .pf-v6-c-toolbar {
             display: flex !important;
             width: 100% !important;
             margin-top: 6px !important;
@@ -70,11 +72,22 @@
             border-top: 1px dashed rgba(255, 255, 255, 0.12) !important;
         }
 
-        .terminal-header-actions {
+        /* Fixed / Overlay Header Action Bar (Completely isolated from React's DOM tree) */
+        #terminal-custom-bar {
+            position: fixed;
+            top: 5px;
+            right: 8px;
+            z-index: 10000;
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            margin-left: auto;
+            background: rgba(17, 18, 21, 0.9);
+            backdrop-filter: blur(6px);
+            padding: 2px 6px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            pointer-events: auto;
         }
 
         .term-action-btn {
@@ -110,9 +123,49 @@
             border-color: #38bdf8;
             color: #38bdf8;
         }
+
+        /* History select box, shown when settings are expanded */
+        .term-history-box {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #94a3b8;
+            padding-right: 4px;
+            border-right: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        body.show-settings .term-history-box {
+            display: inline-flex;
+        }
+        .term-history-box select {
+            background: #1e2025;
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            font-size: 11px;
+            padding: 2px 4px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="pf-v6-m-tabular-nums" hidden="true">
+    <!-- Standalone custom actions bar: never conflicts with Cockpit React virtual DOM -->
+    <div id="terminal-custom-bar">
+        <div id="term-history-box" class="term-history-box">
+            <span>Scrollback:</span>
+            <select id="term-history-select" title="Terminal scrollback history limit">
+                <option value="1000">1,000</option>
+                <option value="5000">5,000</option>
+                <option value="10000">10,000</option>
+                <option value="50000">50,000</option>
+            </select>
+        </div>
+        <button id="term-top-btn" class="term-action-btn" type="button" title="Scroll to top of history">↑ Top</button>
+        <button id="term-end-btn" class="term-action-btn" type="button" title="Scroll to bottom">↓ End</button>
+        <button id="term-copy-btn" class="term-action-btn" type="button" title="Copy terminal output or selection"><span id="term-copy-label">📋 Copy</span></button>
+        <button id="term-settings-btn" class="term-action-btn" type="button" title="Show / Hide Settings">⚙️ Settings</button>
+    </div>
+
     <div class="ct-page-fill" id="terminal"></div>
     <script src="terminal.js"></script>
     <script>
@@ -129,32 +182,21 @@
             if (!fiberKey) return null;
             var node = root[fiberKey];
             var depth = 0;
-            while (node && depth < 30) {
+            while (node && depth < 35) {
                 if (node.stateNode) {
+                    if (node.stateNode.terminal) {
+                        xtermInstance = node.stateNode.terminal;
+                        return xtermInstance;
+                    }
                     if (node.stateNode.terminal_state && node.stateNode.terminal_state.terminal) {
                         xtermInstance = node.stateNode.terminal_state.terminal;
                         return xtermInstance;
                     }
-                    if (node.stateNode.terminal && typeof node.stateNode.terminal.scrollLines === "function") {
-                        xtermInstance = node.stateNode.terminal;
-                        return xtermInstance;
-                    }
                 }
-                node = node.child || (node.sibling && node.sibling.child);
+                node = node.child || (node.memoizedState && node.memoizedState.element);
                 depth++;
             }
             return null;
-        }
-
-        function ensureScrollback() {
-            var term = findXterm();
-            if (term && term.options) {
-                // Ensure at least 1000 lines of scrollback history
-                if (!term.options.scrollback || term.options.scrollback < 1000) {
-                    term.options.scrollback = 1000;
-                }
-                term.options.scrollSensitivity = 2;
-            }
         }
 
         function scrollToTop() {
@@ -177,88 +219,30 @@
             if (viewport) viewport.scrollTop = viewport.scrollHeight;
         }
 
-        function scrollLines(deltaLines) {
-            var term = findXterm();
-            if (term && typeof term.scrollLines === "function") {
-                term.scrollLines(deltaLines);
-                return;
-            }
-            var viewport = document.querySelector('.xterm-viewport');
-            if (viewport) {
-                viewport.scrollTop += (deltaLines * 20);
-                viewport.dispatchEvent(new Event('scroll'));
-            }
-        }
-
-        // Native touch swipe scrolling on the terminal viewport
-        function setupTouchScroll() {
-            var termEl = document.getElementById('terminal');
-            if (!termEl) return;
-
-            var touchStartY = 0;
-            var touchLastY = 0;
-            var accumulated = 0;
-
-            termEl.addEventListener('touchstart', function(e) {
-                if (e.touches.length === 1) {
-                    touchStartY = e.touches[0].clientY;
-                    touchLastY = touchStartY;
-                    accumulated = 0;
-                }
-            }, { passive: true });
-
-            termEl.addEventListener('touchmove', function(e) {
-                if (e.touches.length === 1) {
-                    var currentY = e.touches[0].clientY;
-                    var deltaY = touchLastY - currentY; // dragged up = scroll down; dragged down = scroll up
-                    touchLastY = currentY;
-                    accumulated += deltaY;
-
-                    if (Math.abs(accumulated) >= 14) {
-                        var lines = Math.trunc(accumulated / 14);
-                        scrollLines(lines);
-                        accumulated -= (lines * 14);
-                    }
-                }
-            }, { passive: true });
-        }
-
         function getTerminalOutput() {
             var term = findXterm();
             if (term) {
                 if (typeof term.hasSelection === "function" && term.hasSelection()) {
-                    var selected = term.getSelection();
-                    if (selected && selected.trim()) return selected;
+                    var sel = term.getSelection();
+                    if (sel && sel.length > 0) return sel;
                 }
-                if (typeof term.selectAll === "function" && typeof term.getSelection === "function" && typeof term.clearSelection === "function") {
-                    term.selectAll();
-                    var text = term.getSelection();
-                    term.clearSelection();
-                    if (text && text.trim()) return text;
+                if (term.buffer && term.buffer.active) {
+                    var buf = term.buffer.active;
+                    var lines = [];
+                    for (var i = 0; i < buf.length; i++) {
+                        var line = buf.getLine(i);
+                        if (line) lines.push(line.translateToString(true));
+                    }
+                    while (lines.length > 0 && lines[lines.length - 1].trim() === "") {
+                        lines.pop();
+                    }
+                    return lines.join("\n");
                 }
             }
-
-            var sel = window.getSelection ? window.getSelection().toString() : "";
-            if (sel && sel.trim().length > 0) return sel;
-
-            var a11y = document.querySelectorAll('.xterm-accessibility [role="listitem"]');
-            if (a11y && a11y.length > 0) {
-                var lines = [];
-                for (var i = 0; i < a11y.length; i++) lines.push(a11y[i].textContent || "");
-                while (lines.length > 0 && !lines[lines.length - 1].trim()) lines.pop();
-                if (lines.length > 0) return lines.join("\n");
-            }
-
-            var rows = document.querySelectorAll('.xterm-rows > div');
-            if (rows && rows.length > 0) {
-                var lines = [];
-                for (var i = 0; i < rows.length; i++) lines.push(rows[i].textContent || "");
-                while (lines.length > 0 && !lines[lines.length - 1].trim()) lines.pop();
-                if (lines.length > 0) return lines.join("\n");
-            }
-
-            var container = document.getElementById("terminal");
-            return container ? container.innerText || "" : "";
+            var sel = window.getSelection();
+            if (sel && sel.toString().trim().length > 0) return sel.toString();
+            var rows = document.querySelector(".xterm-rows");
+            return rows ? rows.innerText : "";
         }
 
         function copyOutput(btn, labelSpan) {
@@ -266,19 +250,21 @@
             if (!text || !text.trim()) {
                 if (labelSpan) {
                     labelSpan.textContent = "Empty";
-                    setTimeout(function() { labelSpan.textContent = "Copy"; }, 1500);
+                    setTimeout(function() { labelSpan.textContent = "📋 Copy"; }, 1500);
                 }
                 return;
             }
 
-            var p = navigator.clipboard && navigator.clipboard.writeText
+            var p = (navigator.clipboard && window.isSecureContext)
                 ? navigator.clipboard.writeText(text)
                 : new Promise(function(resolve, reject) {
                     var ta = document.createElement("textarea");
                     ta.value = text;
                     ta.style.position = "fixed";
                     ta.style.left = "-9999px";
+                    ta.style.top = "-9999px";
                     document.body.appendChild(ta);
+                    ta.focus();
                     ta.select();
                     var ok = false;
                     try { ok = document.execCommand("copy"); } catch (e) {}
@@ -288,109 +274,98 @@
 
             p.then(function() {
                 if (labelSpan) {
-                    labelSpan.textContent = "Copied!";
+                    labelSpan.textContent = "✅ Copied!";
                     btn.classList.add("active");
                     setTimeout(function() {
-                        labelSpan.textContent = "Copy";
+                        labelSpan.textContent = "📋 Copy";
                         btn.classList.remove("active");
                     }, 2000);
                 }
             }).catch(function() {
                 if (labelSpan) {
                     labelSpan.textContent = "Failed";
-                    setTimeout(function() { labelSpan.textContent = "Copy"; }, 1500);
+                    setTimeout(function() { labelSpan.textContent = "📋 Copy"; }, 1500);
                 }
             });
         }
 
-        // Inject action buttons into Cockpit's .terminal-group header
-        function setupHeaderActions() {
-            var group = document.querySelector(".terminal-group");
-            if (!group) return false;
-
-            if (document.getElementById("terminal-custom-actions")) return true;
-
-            var actionsContainer = document.createElement("div");
-            actionsContainer.id = "terminal-custom-actions";
-            actionsContainer.className = "terminal-header-actions";
-
-            // 1. Scroll to top button
-            var topBtn = document.createElement("button");
-            topBtn.className = "term-action-btn";
-            topBtn.type = "button";
-            topBtn.title = "Scroll to top of history";
-            topBtn.innerHTML = '<span>↑ Top</span>';
-            topBtn.addEventListener("click", function(e) {
-                e.preventDefault();
-                scrollToTop();
-            });
-
-            // 2. Scroll to bottom button
-            var bottomBtn = document.createElement("button");
-            bottomBtn.className = "term-action-btn";
-            bottomBtn.type = "button";
-            bottomBtn.title = "Scroll to bottom";
-            bottomBtn.innerHTML = '<span>↓ End</span>';
-            bottomBtn.addEventListener("click", function(e) {
-                e.preventDefault();
-                scrollToBottom();
-            });
-
-            // 3. Copy button
-            var copyBtn = document.createElement("button");
-            copyBtn.className = "term-action-btn";
-            copyBtn.type = "button";
-            copyBtn.title = "Copy terminal output or selection";
-            copyBtn.innerHTML = '<span id="header-copy-label">📋 Copy</span>';
-            var copyLabel = copyBtn.querySelector("#header-copy-label");
-            copyBtn.addEventListener("click", function(e) {
-                e.preventDefault();
-                copyOutput(copyBtn, copyLabel);
-            });
-
-            // 4. Settings toggle button (Font size, Appearance)
-            var settingsBtn = document.createElement("button");
-            settingsBtn.className = "term-action-btn";
-            settingsBtn.type = "button";
-            settingsBtn.title = "Show / Hide Font size & Appearance settings";
-            settingsBtn.innerHTML = '<span>⚙️ Settings</span>';
-
-            settingsBtn.addEventListener("click", function(e) {
-                e.preventDefault();
-                var toolbar = document.getElementById("toolbar") || document.querySelector(".terminal-group > .pf-v6-c-toolbar");
-                if (toolbar) {
-                    var isVisible = toolbar.classList.toggle("settings-visible");
-                    settingsBtn.classList.toggle("active", isVisible);
-                }
-            });
-
-            actionsContainer.appendChild(topBtn);
-            actionsContainer.appendChild(bottomBtn);
-            actionsContainer.appendChild(copyBtn);
-            actionsContainer.appendChild(settingsBtn);
-
-            var titleEl = group.querySelector(".terminal-title");
-            if (titleEl && titleEl.nextSibling) {
-                group.insertBefore(actionsContainer, titleEl.nextSibling);
-            } else {
-                group.appendChild(actionsContainer);
+        function applyScrollback(limit) {
+            var term = findXterm();
+            if (term && term.options) {
+                term.options.scrollback = limit;
             }
+        }
 
-            return true;
+        function setupTouchScroll() {
+            var vp = document.querySelector(".xterm-viewport");
+            if (!vp) return;
+            var startY = 0;
+            vp.addEventListener("touchstart", function(e) {
+                if (e.touches.length === 1) startY = e.touches[0].clientY;
+            }, { passive: true });
+            vp.addEventListener("touchmove", function(e) {
+                if (e.touches.length === 1) {
+                    var diff = startY - e.touches[0].clientY;
+                    startY = e.touches[0].clientY;
+                    vp.scrollTop += diff;
+                }
+            }, { passive: true });
         }
 
         function init() {
+            var topBtn = document.getElementById("term-top-btn");
+            var endBtn = document.getElementById("term-end-btn");
+            var copyBtn = document.getElementById("term-copy-btn");
+            var copyLabel = document.getElementById("term-copy-label");
+            var settingsBtn = document.getElementById("term-settings-btn");
+            var historySelect = document.getElementById("term-history-select");
+
+            var savedLimit = parseInt(localStorage.getItem("cockpit_terminal_scrollback") || "5000", 10);
+            if (historySelect) {
+                historySelect.value = String(savedLimit);
+                historySelect.addEventListener("change", function() {
+                    var val = parseInt(historySelect.value, 10);
+                    localStorage.setItem("cockpit_terminal_scrollback", String(val));
+                    applyScrollback(val);
+                });
+            }
+
+            if (topBtn) {
+                topBtn.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    scrollToTop();
+                });
+            }
+
+            if (endBtn) {
+                endBtn.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    scrollToBottom();
+                });
+            }
+
+            if (copyBtn) {
+                copyBtn.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    copyOutput(copyBtn, copyLabel);
+                });
+            }
+
+            if (settingsBtn) {
+                settingsBtn.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    var isShown = document.body.classList.toggle("show-settings");
+                    settingsBtn.classList.toggle("active", isShown);
+                });
+            }
+
             setupTouchScroll();
 
-            // Continuously ensure header actions and scrollback once React mounts
-            var interval = setInterval(function() {
-                var done = setupHeaderActions();
-                ensureScrollback();
-                if (done) clearInterval(interval);
-            }, 300);
-
-            // Re-check periodically
-            setInterval(ensureScrollback, 2000);
+            // Periodic sync to make sure xterm instance has the user-configured scrollback limit applied
+            setInterval(function() {
+                var limit = parseInt(localStorage.getItem("cockpit_terminal_scrollback") || "5000", 10);
+                applyScrollback(limit);
+            }, 2000);
         }
 
         if (document.readyState === "loading") {

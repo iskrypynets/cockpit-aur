@@ -171,10 +171,10 @@ def verify(target_name: str, remote: str | None, expected_ver: str) -> bool:
 
     # 12. Check Cockpit Terminal enhancements
     code, stdout, stderr = run_target_cmd(
-        "grep -q 'terminal-custom-actions' /usr/share/cockpit/systemd/terminal.html && "
+        "grep -q 'terminal-custom-bar' /usr/share/cockpit/systemd/terminal.html && "
         "grep -q 'copyOutput' /usr/share/cockpit/systemd/terminal.html && "
-        "grep -q 'settings-visible' /usr/share/cockpit/systemd/terminal.html && "
-        "grep -q 'ensureScrollback' /usr/share/cockpit/systemd/terminal.html",
+        "grep -q 'show-settings' /usr/share/cockpit/systemd/terminal.html && "
+        "grep -q 'applyScrollback' /usr/share/cockpit/systemd/terminal.html",
         remote,
     )
     check("Cockpit terminal enhancements (Copy, Settings toggle, Scrollback)", code == 0)
