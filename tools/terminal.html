@@ -20,118 +20,222 @@
             -webkit-overflow-scrolling: touch !important;
         }
         .xterm-viewport::-webkit-scrollbar {
-            width: 12px !important;
-            background: rgba(0, 0, 0, 0.5) !important;
+            width: 10px !important;
+            background: rgba(0, 0, 0, 0.4) !important;
         }
         .xterm-viewport::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.4) !important;
-            border-radius: 6px !important;
-            border: 2px solid rgba(0, 0, 0, 0.2) !important;
+            background: rgba(255, 255, 255, 0.35) !important;
+            border-radius: 5px !important;
         }
 
-        /* Floating Terminal Controls Toolbar */
-        #terminal-toolbar {
+        /* Floating Tool Container */
+        #terminal-floating-container {
             position: fixed;
             top: 10px;
             right: 12px;
             z-index: 99999;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Small semi-transparent toggle icon (default state) */
+        #term-toggle-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(30, 30, 35, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.75);
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+        }
+        #term-toggle-btn:hover, #term-toggle-btn:focus-visible {
+            background: rgba(45, 45, 52, 0.95);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: scale(1.06);
+        }
+
+        /* Expanded toolbar */
+        #terminal-toolbar {
             display: inline-flex;
             align-items: center;
             gap: 4px;
             padding: 4px 6px;
-            background: rgba(25, 25, 28, 0.92);
-            border: 1px solid rgba(255, 255, 255, 0.22);
+            background: rgba(25, 25, 28, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             border-radius: 10px;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-            touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        #terminal-toolbar.hidden {
+            display: none !important;
         }
 
         .term-tool-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            height: 32px;
-            min-width: 32px;
+            height: 30px;
+            min-width: 30px;
             padding: 0 8px;
             font-size: 13px;
             font-family: inherit;
             font-weight: 600;
             color: #ffffff;
             background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.12s ease;
             touch-action: manipulation;
         }
         .term-tool-btn:hover, .term-tool-btn:focus-visible {
-            background: rgba(255, 255, 255, 0.18);
-            border-color: rgba(255, 255, 255, 0.35);
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
         }
         .term-tool-btn:active {
             transform: scale(0.92);
-            background: rgba(255, 255, 255, 0.25);
         }
 
         #copy-terminal-btn {
             gap: 5px;
-            padding: 0 10px;
+            padding: 0 9px;
+        }
+        #term-close-btn {
+            color: rgba(255, 255, 255, 0.65);
+            padding: 0 6px;
+        }
+        #term-close-btn:hover {
+            color: #ffffff;
         }
     </style>
 </head>
 <body class="pf-v6-m-tabular-nums" hidden="true">
-    <div id="terminal-toolbar">
-        <button id="term-top-btn" class="term-tool-btn" type="button" title="Scroll to top (history)" aria-label="Scroll to top">⤒</button>
-        <button id="term-up-btn" class="term-tool-btn" type="button" title="Scroll up" aria-label="Scroll up">▲</button>
-        <button id="term-down-btn" class="term-tool-btn" type="button" title="Scroll down" aria-label="Scroll down">▼</button>
-        <button id="term-end-btn" class="term-tool-btn" type="button" title="Scroll to bottom" aria-label="Scroll to bottom">⤓</button>
-        <button id="copy-terminal-btn" class="term-tool-btn" type="button" title="Copy terminal output" aria-label="Copy terminal output">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    <div id="terminal-floating-container">
+        <!-- Floating trigger button (shown when toolbar is hidden) -->
+        <button id="term-toggle-btn" type="button" title="Terminal navigation & copy tools" aria-label="Terminal tools">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1.5"></circle>
+                <circle cx="12" cy="5" r="1.5"></circle>
+                <circle cx="12" cy="19" r="1.5"></circle>
             </svg>
-            <span id="copy-terminal-text" style="pointer-events: none;">Copy</span>
         </button>
+
+        <!-- Expanded controls toolbar -->
+        <div id="terminal-toolbar" class="hidden">
+            <button id="term-top-btn" class="term-tool-btn" type="button" title="Top of history">⤒ Top</button>
+            <button id="term-up-btn" class="term-tool-btn" type="button" title="Scroll up">▲</button>
+            <button id="term-down-btn" class="term-tool-btn" type="button" title="Scroll down">▼</button>
+            <button id="term-end-btn" class="term-tool-btn" type="button" title="Scroll to bottom">⤓</button>
+            <button id="copy-terminal-btn" class="term-tool-btn" type="button" title="Copy output">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span id="copy-terminal-text" style="pointer-events: none;">Copy</span>
+            </button>
+            <button id="term-close-btn" class="term-tool-btn" type="button" title="Hide toolbar">✕</button>
+        </div>
     </div>
 
     <div class="ct-page-fill" id="terminal"></div>
     <script src="terminal.js"></script>
     <script>
     (function() {
-        function scrollTerminalByLines(lines) {
+        var xtermInstance = null;
+
+        // Discover xterm instance from React component tree
+        function findXterm() {
+            if (xtermInstance) return xtermInstance;
+            var root = document.getElementById("terminal");
+            if (!root) return null;
+            var fiberKey = Object.keys(root).find(function(k) {
+                return k.startsWith("__reactFiber$") || k.startsWith("__reactContainer$");
+            });
+            if (!fiberKey) return null;
+            var node = root[fiberKey];
+            var depth = 0;
+            while (node && depth < 20) {
+                if (node.stateNode) {
+                    if (node.stateNode.terminal_state && node.stateNode.terminal_state.terminal) {
+                        xtermInstance = node.stateNode.terminal_state.terminal;
+                        return xtermInstance;
+                    }
+                    if (node.stateNode.terminal && typeof node.stateNode.terminal.scrollLines === "function") {
+                        xtermInstance = node.stateNode.terminal;
+                        return xtermInstance;
+                    }
+                }
+                node = node.child || (node.sibling && node.sibling.child);
+                depth++;
+            }
+            return null;
+        }
+
+        function ensureScrollback() {
+            var term = findXterm();
+            if (term && term.options) {
+                // Configure 1000 lines history buffer
+                if (term.options.scrollback < 1000) {
+                    term.options.scrollback = 1000;
+                }
+            }
+        }
+
+        function scrollTerminalLines(lines) {
+            var term = findXterm();
+            if (term && typeof term.scrollLines === "function") {
+                term.scrollLines(lines);
+                return;
+            }
             var viewport = document.querySelector('.xterm-viewport');
             if (viewport) {
-                // Approximate row height ~ 18-20px
                 viewport.scrollTop += (lines * 20);
                 viewport.dispatchEvent(new Event('scroll'));
             }
-            // Also dispatch WheelEvent on screen so xterm internal buffer state updates
             var target = document.querySelector('.xterm-screen') || document.querySelector('.xterm') || document.getElementById('terminal');
             if (target) {
-                var wheelEvt = new WheelEvent('wheel', {
+                target.dispatchEvent(new WheelEvent('wheel', {
                     deltaY: lines * 40,
                     deltaMode: 0,
                     bubbles: true,
                     cancelable: true
-                });
-                target.dispatchEvent(wheelEvt);
+                }));
             }
         }
 
         function scrollToExtreme(toTop) {
+            var term = findXterm();
+            if (term) {
+                if (toTop && typeof term.scrollToTop === "function") {
+                    term.scrollToTop();
+                    return;
+                }
+                if (!toTop && typeof term.scrollToBottom === "function") {
+                    term.scrollToBottom();
+                    return;
+                }
+            }
             var viewport = document.querySelector('.xterm-viewport');
             if (viewport) {
                 viewport.scrollTop = toTop ? 0 : viewport.scrollHeight;
                 viewport.dispatchEvent(new Event('scroll'));
             }
-            scrollTerminalByLines(toTop ? -500 : 500);
+            scrollTerminalLines(toTop ? -500 : 500);
         }
 
-        // Touch swipe scrolling for mobile screens
+        // Touch swipe scrolling
         function setupTouchScroll() {
             var termEl = document.getElementById('terminal');
             if (!termEl) return;
@@ -139,14 +243,12 @@
             var touchStartY = 0;
             var touchLastY = 0;
             var accumulated = 0;
-            var isTouchMoving = false;
 
             termEl.addEventListener('touchstart', function(e) {
                 if (e.touches.length === 1) {
                     touchStartY = e.touches[0].clientY;
                     touchLastY = touchStartY;
                     accumulated = 0;
-                    isTouchMoving = false;
                 }
             }, { passive: true });
 
@@ -157,45 +259,36 @@
                     touchLastY = currentY;
                     accumulated += deltaY;
 
-                    // Step threshold: ~15px per line
                     if (Math.abs(accumulated) >= 15) {
                         var lines = Math.trunc(accumulated / 15);
-                        scrollTerminalByLines(lines);
+                        scrollTerminalLines(lines);
                         accumulated -= (lines * 15);
-                        isTouchMoving = true;
                     }
                 }
             }, { passive: true });
         }
 
         function getTerminalOutput() {
-            // 1. If text is selected by user, use selection
             var sel = window.getSelection ? window.getSelection().toString() : "";
             if (sel && sel.trim().length > 0) return sel;
 
-            // 2. Extract from xterm-accessibility
             var a11yItems = document.querySelectorAll('.xterm-accessibility [role="listitem"]');
             if (a11yItems && a11yItems.length > 0) {
                 var lines = [];
                 for (var i = 0; i < a11yItems.length; i++) {
                     lines.push(a11yItems[i].textContent || "");
                 }
-                while (lines.length > 0 && !lines[lines.length - 1].trim()) {
-                    lines.pop();
-                }
+                while (lines.length > 0 && !lines[lines.length - 1].trim()) lines.pop();
                 if (lines.length > 0) return lines.join("\n");
             }
 
-            // 3. Extract from .xterm-rows > div
             var rows = document.querySelectorAll('.xterm-rows > div');
             if (rows && rows.length > 0) {
                 var lines = [];
                 for (var i = 0; i < rows.length; i++) {
                     lines.push(rows[i].textContent || "");
                 }
-                while (lines.length > 0 && !lines[lines.length - 1].trim()) {
-                    lines.pop();
-                }
+                while (lines.length > 0 && !lines[lines.length - 1].trim()) lines.pop();
                 if (lines.length > 0) return lines.join("\n");
             }
 
@@ -206,11 +299,7 @@
         function copyText(text) {
             if (!text) return Promise.resolve(false);
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                return navigator.clipboard.writeText(text).then(function() {
-                    return true;
-                }).catch(function() {
-                    return execCopy(text);
-                });
+                return navigator.clipboard.writeText(text).then(function() { return true; }).catch(function() { return execCopy(text); });
             }
             return Promise.resolve(execCopy(text));
         }
@@ -223,9 +312,7 @@
             document.body.appendChild(ta);
             ta.select();
             var ok = false;
-            try {
-                ok = document.execCommand("copy");
-            } catch (e) {}
+            try { ok = document.execCommand("copy"); } catch (e) {}
             document.body.removeChild(ta);
             return ok;
         }
@@ -233,7 +320,25 @@
         window.addEventListener("DOMContentLoaded", function() {
             setupTouchScroll();
 
-            // Navigation buttons
+            var toggleBtn = document.getElementById("term-toggle-btn");
+            var toolbar = document.getElementById("terminal-toolbar");
+            var closeBtn = document.getElementById("term-close-btn");
+
+            function showToolbar() {
+                toolbar.classList.remove("hidden");
+                toggleBtn.style.display = "none";
+                ensureScrollback();
+            }
+
+            function hideToolbar() {
+                toolbar.classList.add("hidden");
+                toggleBtn.style.display = "flex";
+            }
+
+            if (toggleBtn) toggleBtn.addEventListener("click", showToolbar);
+            if (closeBtn) closeBtn.addEventListener("click", hideToolbar);
+
+            // Navigation
             var topBtn = document.getElementById("term-top-btn");
             var upBtn = document.getElementById("term-up-btn");
             var downBtn = document.getElementById("term-down-btn");
@@ -241,37 +346,39 @@
 
             if (topBtn) topBtn.addEventListener("click", function(e) { e.preventDefault(); scrollToExtreme(true); });
             if (endBtn) endBtn.addEventListener("click", function(e) { e.preventDefault(); scrollToExtreme(false); });
-            if (upBtn) upBtn.addEventListener("click", function(e) { e.preventDefault(); scrollTerminalByLines(-8); });
-            if (downBtn) downBtn.addEventListener("click", function(e) { e.preventDefault(); scrollTerminalByLines(8); });
+            if (upBtn) upBtn.addEventListener("click", function(e) { e.preventDefault(); scrollTerminalLines(-8); });
+            if (downBtn) downBtn.addEventListener("click", function(e) { e.preventDefault(); scrollTerminalLines(8); });
 
-            // Copy button
+            // Copy
             var btn = document.getElementById("copy-terminal-btn");
             var txt = document.getElementById("copy-terminal-text");
-            if (!btn) return;
-
-            btn.addEventListener("click", function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var content = getTerminalOutput();
-                if (!content || !content.trim()) {
-                    txt.textContent = "Empty";
-                    setTimeout(function() { txt.textContent = "Copy"; }, 1500);
-                    return;
-                }
-                copyText(content).then(function(ok) {
-                    if (ok) {
-                        txt.textContent = "Copied!";
-                        btn.style.borderColor = "#3e8635";
-                        setTimeout(function() {
-                            txt.textContent = "Copy";
-                            btn.style.borderColor = "rgba(255, 255, 255, 0.12)";
-                        }, 2000);
-                    } else {
-                        txt.textContent = "Failed";
+            if (btn) {
+                btn.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var content = getTerminalOutput();
+                    if (!content || !content.trim()) {
+                        txt.textContent = "Empty";
                         setTimeout(function() { txt.textContent = "Copy"; }, 1500);
+                        return;
                     }
+                    copyText(content).then(function(ok) {
+                        if (ok) {
+                            txt.textContent = "Copied!";
+                            btn.style.borderColor = "#3e8635";
+                            setTimeout(function() {
+                                txt.textContent = "Copy";
+                                btn.style.borderColor = "rgba(255, 255, 255, 0.15)";
+                            }, 2000);
+                        } else {
+                            txt.textContent = "Failed";
+                            setTimeout(function() { txt.textContent = "Copy"; }, 1500);
+                        }
+                    });
                 });
-            });
+            }
+
+            setInterval(ensureScrollback, 2000);
         });
     })();
     </script>
