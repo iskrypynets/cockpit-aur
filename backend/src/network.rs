@@ -289,6 +289,7 @@ pub unsafe fn initialize(command: &str) {
         command,
         "sync-database"
             | "check-updates"
+            | "preflight-upgrade"
             | "aur-search"
             | "aur-info"
             | "aur-pkgbuild"

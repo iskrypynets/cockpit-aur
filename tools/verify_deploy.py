@@ -198,10 +198,27 @@ def verify(target_name: str, remote: str | None, expected_ver: str) -> bool:
         detail = f"exit {code}: {stderr[:100]}"
     check("Backend check-updates executes successfully without AUR warnings", check_updates_ok, detail)
 
+    # 14. Check backend preflight-upgrade includes AUR and official updates
+    code, stdout, stderr = run_target_cmd("sudo /usr/libexec/cockpit-aur/cockpit-aur-backend preflight-upgrade", remote)
+    preflight_ok = False
+    detail = ""
+    if code == 0:
+        try:
+            data = json.loads(stdout)
+            preflight_ok = data.get("success") is True
+            add_list = data.get("add", [])
+            aur_in_add = sum(1 for p in add_list if p.get("repo") == "aur")
+            detail = f"packages={data.get('packages_to_upgrade')}, aur_in_add={aur_in_add}"
+        except Exception:
+            detail = f"invalid json: {stdout[:100]}"
+    else:
+        detail = f"exit {code}: {stderr[:100]}"
+    check("Backend preflight-upgrade includes AUR packages in transaction preview", preflight_ok, detail)
+
     # Summary
     print("-" * 60)
     if not failures:
-        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {13} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
+        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {14} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
         return True
     else:
         print(f"{Colors.RED}{Colors.BOLD}❌ DEPLOYMENT VERIFICATION FAILED FOR [{target_name}] ({len(failures)} failures):{Colors.RESET}")

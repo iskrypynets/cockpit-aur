@@ -409,7 +409,7 @@ pub fn preflight_upgrade(ignore_pkgs: &[String]) -> Result<()> {
     removals.sort_unstable();
     removals.dedup();
 
-    let packages_to_upgrade = tx.add().len();
+    let _packages_to_upgrade = tx.add().len();
     let total_download_size: i64 = tx.add().iter().map(|p| p.download_size()).sum();
 
     if let Some(err) = prepare_err {
@@ -421,14 +421,6 @@ pub fn preflight_upgrade(ignore_pkgs: &[String]) -> Result<()> {
             removals,
             providers: s.providers.clone(),
             import_keys: s.import_keys.clone(),
-            ..Default::default()
-        };
-        return emit_json(&response);
-    }
-
-    if packages_to_upgrade == 0 && removals.is_empty() {
-        let response = PreflightResponse {
-            success: true,
             ..Default::default()
         };
         return emit_json(&response);
@@ -467,13 +459,46 @@ pub fn preflight_upgrade(ignore_pkgs: &[String]) -> Result<()> {
         });
     }
 
-    // is pulled in, so the confirm can show what goes beyond the selection.
     let targets: Vec<String> = upgrade_names
         .iter()
         .filter(|name| tx.localdb().pkg(name.as_str()).is_ok())
         .cloned()
         .collect();
-    let (add, remove) = preview_items(&tx, &targets, false);
+
+    let (mut add, remove) = preview_items(&tx, &targets, false);
+    drop(tx);
+
+    // Include pending AUR updates in preflight preview if online
+    if crate::network::require_network().is_ok() {
+        if let Ok((config, _)) = crate::config::AppConfig::load_degraded() {
+            let mut effective_ignored = config.ignored_packages;
+            effective_ignored.extend(ignore_pkgs.iter().cloned());
+            if let Ok(aur_updates) = crate::aur::find_aur_updates(&handle, &effective_ignored) {
+                for aur in aur_updates {
+                    add.push(PreviewAdd {
+                        name: aur.name,
+                        version: aur.new_version,
+                        repo: Some("aur".to_string()),
+                        download_size: 0,
+                        installed_size: aur.new_size as i64,
+                        old_version: Some(aur.current_version),
+                        old_installed_size: Some(aur.current_size as i64),
+                        reason: AddReason::Target,
+                    });
+                }
+            }
+        }
+    }
+
+    if add.is_empty() && removals.is_empty() {
+        let response = PreflightResponse {
+            success: true,
+            ..Default::default()
+        };
+        return emit_json(&response);
+    }
+
+    let packages_to_upgrade = add.len();
     let (_, net_installed_size) = preview_totals(&add, &remove);
     warnings.extend(crate::space::check(total_download_size, net_installed_size));
 

@@ -83,6 +83,7 @@ import {
   checkUpdates,
   getActiveTransaction,
   runUpgrade,
+  upgradeAurPackages,
   syncDatabase,
   preflightUpgrade,
   formatSize,
@@ -1312,62 +1313,96 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
       setUpgradeProgress((prev) => reduceProgress(prev, event, plan));
     };
 
-    cancelRef.current = runUpgrade({
-      onEvent: handleEvent,
-      onData: appendLog,
-      onComplete: () => {
-        flushLog();
-        autoResumedRef.current = false;
-        if (isCancellingRef.current) {
-          setCancelling(false);
-          setCancelOutcome({ kind: "finished" });
-        }
-        setState("success");
-        setUpdates([]);
-        cancelRef.current = null;
-        announce("Upgrade finished");
-        if (optInRef.current.reboot) {
-          requestReboot();
-          return;
-        }
-        reloadUpdatesQuietly(true);
-        postRunRef.current += 1;
-        const run = postRunRef.current;
-        setPostChecks({ reboot: "pending", services: "pending", pacnew: "pending", orphans: "pending" });
-        const settle = (check: PostRunCheck) => (result: unknown) => {
-          if (postRunRef.current !== run) return;
-          setPostChecks((prev) => prev && { ...prev, [check]: result === null ? "failed" : "done" });
-        };
-        loadRebootStatus().then(settle("reboot"));
-        loadPacnewStatus().then(settle("pacnew"));
-        loadOverview().then(settle("orphans"));
-        loadServicesStatus().then((status) => {
-          settle("services")(status);
-          if (optInRef.current.restart && status?.restart_required) {
-            const units = status.services
-              .filter((s) => !effectiveBlock(s, isLocalCockpit))
-              .map((s) => s.name);
-            if (units.length > 0) restartUnits(units);
-          }
-        });
-      },
-      onError: (err, code, details) => {
-        flushLog();
-        cancelRef.current = null;
-        const cancellationRequested = isCancellingRef.current;
+    const finishUpgrade = () => {
+      flushLog();
+      autoResumedRef.current = false;
+      if (isCancellingRef.current) {
         setCancelling(false);
-        if (cancellationRequested && code === "cancelled") {
-          setCancelOutcome({ kind: "stopped", detail: err });
-          announce("Upgrade cancelled");
-          loadUpdates();
-          loadRebootStatus();
-          loadPacnewStatus();
-          return;
+        setCancelOutcome({ kind: "finished" });
+      }
+      setState("success");
+      setUpdates([]);
+      cancelRef.current = null;
+      announce("Upgrade finished");
+      if (optInRef.current.reboot) {
+        requestReboot();
+        return;
+      }
+      reloadUpdatesQuietly(true);
+      postRunRef.current += 1;
+      const run = postRunRef.current;
+      setPostChecks({ reboot: "pending", services: "pending", pacnew: "pending", orphans: "pending" });
+      const settle = (check: PostRunCheck) => (result: unknown) => {
+        if (postRunRef.current !== run) return;
+        setPostChecks((prev) => prev && { ...prev, [check]: result === null ? "failed" : "done" });
+      };
+      loadRebootStatus().then(settle("reboot"));
+      loadPacnewStatus().then(settle("pacnew"));
+      loadOverview().then(settle("orphans"));
+      loadServicesStatus().then((status) => {
+        settle("services")(status);
+        if (optInRef.current.restart && status?.restart_required) {
+          const units = status.services
+            .filter((s) => !effectiveBlock(s, isLocalCockpit))
+            .map((s) => s.name);
+          if (units.length > 0) restartUnits(units);
         }
-        announce("Upgrade failed", { assertive: true });
-        failWith("upgrade", err, code, details);
-      },
-    }, ignoredPackages, removalNames(preflight));
+      });
+    };
+
+    const hasAurUpdates = (preflight?.add ?? []).some((p) => p.repo === "aur") ||
+      selectedUpdates.some((u) => u.repository === "aur");
+    const hasRepoUpdates = (preflight?.add ?? []).some((p) => p.repo !== "aur") ||
+      selectedUpdates.some((u) => u.repository !== "aur");
+
+    const runAur = () => {
+      appendLog("\n[COCKPIT-AUR] Starting AUR upgrade with helper...\n");
+      cancelRef.current = upgradeAurPackages({
+        onEvent: handleEvent,
+        onData: appendLog,
+        onComplete: finishUpgrade,
+        onError: (err, code, details) => {
+          flushLog();
+          cancelRef.current = null;
+          announce("AUR upgrade failed", { assertive: true });
+          failWith("upgrade", err, code, details);
+        },
+      });
+    };
+
+    if (hasRepoUpdates) {
+      cancelRef.current = runUpgrade({
+        onEvent: handleEvent,
+        onData: appendLog,
+        onComplete: () => {
+          if (hasAurUpdates && !isCancellingRef.current) {
+            runAur();
+          } else {
+            finishUpgrade();
+          }
+        },
+        onError: (err, code, details) => {
+          flushLog();
+          cancelRef.current = null;
+          const cancellationRequested = isCancellingRef.current;
+          setCancelling(false);
+          if (cancellationRequested && code === "cancelled") {
+            setCancelOutcome({ kind: "stopped", detail: err });
+            announce("Upgrade cancelled");
+            loadUpdates();
+            loadRebootStatus();
+            loadPacnewStatus();
+            return;
+          }
+          announce("Upgrade failed", { assertive: true });
+          failWith("upgrade", err, code, details);
+        },
+      }, ignoredPackages, removalNames(preflight));
+    } else if (hasAurUpdates) {
+      runAur();
+    } else {
+      finishUpgrade();
+    }
   };
 
   const resumeUpgrade = async () => {
