@@ -28,144 +28,94 @@
             -webkit-overflow-scrolling: touch !important;
         }
         .xterm-viewport::-webkit-scrollbar {
-            width: 8px !important;
-            background: rgba(0, 0, 0, 0.3) !important;
+            width: 10px !important;
+            background: rgba(0, 0, 0, 0.4) !important;
         }
         .xterm-viewport::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3) !important;
-            border-radius: 4px !important;
+            background: rgba(255, 255, 255, 0.35) !important;
+            border-radius: 5px !important;
         }
 
-        /* Bottom-Right Floating Controls (Non-intrusive) */
-        #term-fab-container {
-            position: fixed;
-            bottom: 24px;
-            right: 18px;
-            z-index: 99999;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
+        /* ── Terminal Header & Settings Toggle ─────────────────────────────── */
+        .terminal-group {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            flex-wrap: wrap !important;
+            padding: 6px 12px !important;
+            background: #111215 !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-sizing: border-box !important;
         }
 
-        /* Tiny semi-transparent trigger button */
-        #term-fab-toggle {
-            display: flex;
+        .terminal-title {
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            color: #94a3b8 !important;
+        }
+
+        /* By default, hide Cockpit's bulky settings toolbar (Font size, Appearance, Reset) */
+        #toolbar, .terminal-group > .pf-v6-c-toolbar {
+            display: none !important;
+        }
+
+        /* Shown only when user explicitly toggles it via Settings button */
+        #toolbar.settings-visible, .terminal-group > .pf-v6-c-toolbar.settings-visible {
+            display: flex !important;
+            width: 100% !important;
+            margin-top: 6px !important;
+            padding-top: 6px !important;
+            border-top: 1px dashed rgba(255, 255, 255, 0.12) !important;
+        }
+
+        .terminal-header-actions {
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: rgba(30, 32, 38, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: rgba(255, 255, 255, 0.7);
-            cursor: pointer;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
-            opacity: 0.45;
-            transition: opacity 0.25s ease, transform 0.2s ease, background 0.2s ease;
-        }
-        #term-fab-toggle:hover, #term-fab-toggle:active, #term-fab-toggle:focus {
-            opacity: 1 !important;
-            background: rgba(45, 48, 58, 0.95);
-            color: #ffffff;
-            transform: scale(1.08);
-        }
-
-        /* Expandable popup panel */
-        #term-fab-menu {
-            display: none;
-            flex-direction: column;
             gap: 6px;
-            padding: 8px;
-            margin-bottom: 8px;
-            background: rgba(24, 25, 30, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-            animation: fabFadeIn 0.15s ease-out;
+            margin-left: auto;
         }
 
-        @keyframes fabFadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .fab-btn {
+        .term-action-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            height: 34px;
-            min-width: 34px;
-            padding: 0 12px;
-            font-size: 13px;
+            gap: 5px;
+            height: 28px;
+            padding: 0 10px;
+            font-size: 12px;
             font-family: inherit;
             font-weight: 600;
-            color: #ffffff;
+            color: #e2e8f0;
             background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.12s ease;
-            white-space: nowrap;
+            transition: all 0.15s ease;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        .fab-btn:hover, .fab-btn:focus-visible {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.4);
-        }
-        .fab-btn:active {
-            transform: scale(0.94);
-        }
-
-        .fab-btn-close {
-            background: transparent;
-            border-color: transparent;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 12px;
-            height: 26px;
-        }
-        .fab-btn-close:hover {
+        .term-action-btn:hover, .term-action-btn:focus-visible {
+            background: rgba(255, 255, 255, 0.18);
+            border-color: rgba(255, 255, 255, 0.35);
             color: #ffffff;
-            background: rgba(255, 255, 255, 0.1);
+        }
+        .term-action-btn:active {
+            transform: scale(0.95);
+        }
+        .term-action-btn.active {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.45);
+            color: #38bdf8;
         }
     </style>
 </head>
 <body class="pf-v6-m-tabular-nums" hidden="true">
-    <div id="term-fab-container">
-        <!-- Floating Popup Menu (Hidden by default) -->
-        <div id="term-fab-menu">
-            <button id="fab-top" class="fab-btn" type="button" title="Scroll to top of history">⤒ Top history</button>
-            <button id="fab-up" class="fab-btn" type="button" title="Page up">▲ Page Up</button>
-            <button id="fab-down" class="fab-btn" type="button" title="Page down">▼ Page Down</button>
-            <button id="fab-end" class="fab-btn" type="button" title="Scroll to latest output">⤓ Bottom</button>
-            <button id="fab-copy" class="fab-btn" type="button" title="Copy output">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                <span id="fab-copy-text">Copy</span>
-            </button>
-            <button id="fab-close" class="fab-btn fab-btn-close" type="button">✕ Hide menu</button>
-        </div>
-
-        <!-- Floating Trigger Button -->
-        <button id="term-fab-toggle" type="button" title="Terminal tools" aria-label="Terminal tools">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="4 17 10 11 4 5"></polyline>
-                <line x1="12" y1="19" x2="20" y2="19"></line>
-            </svg>
-        </button>
-    </div>
-
     <div class="ct-page-fill" id="terminal"></div>
     <script src="terminal.js"></script>
     <script>
     (function() {
         var xtermInstance = null;
-        var hideMenuTimer = null;
 
         function findXterm() {
             if (xtermInstance) return xtermInstance;
@@ -227,35 +177,7 @@
             }
         }
 
-        function scrollToTop() {
-            var term = findXterm();
-            if (term && typeof term.scrollToTop === "function") {
-                term.scrollToTop();
-                return;
-            }
-            var viewport = document.querySelector('.xterm-viewport');
-            if (viewport) {
-                viewport.scrollTop = 0;
-                viewport.dispatchEvent(new Event('scroll'));
-            }
-            scrollLines(-1000);
-        }
-
-        function scrollToBottom() {
-            var term = findXterm();
-            if (term && typeof term.scrollToBottom === "function") {
-                term.scrollToBottom();
-                return;
-            }
-            var viewport = document.querySelector('.xterm-viewport');
-            if (viewport) {
-                viewport.scrollTop = viewport.scrollHeight;
-                viewport.dispatchEvent(new Event('scroll'));
-            }
-            scrollLines(1000);
-        }
-
-        // Direct touch swipe scrolling on the terminal body
+        // Native touch swipe scrolling on the terminal viewport
         function setupTouchScroll() {
             var termEl = document.getElementById('terminal');
             if (!termEl) return;
@@ -269,14 +191,13 @@
                     touchStartY = e.touches[0].clientY;
                     touchLastY = touchStartY;
                     accumulated = 0;
-                    closeMenu();
                 }
             }, { passive: true });
 
             termEl.addEventListener('touchmove', function(e) {
                 if (e.touches.length === 1) {
                     var currentY = e.touches[0].clientY;
-                    var deltaY = touchLastY - currentY; // positive = dragged up (scroll down); negative = dragged down (scroll up)
+                    var deltaY = touchLastY - currentY; // dragged up = scroll down; dragged down = scroll up
                     touchLastY = currentY;
                     accumulated += deltaY;
 
@@ -289,7 +210,7 @@
             }, { passive: true });
         }
 
-        function getOutput() {
+        function getTerminalOutput() {
             var sel = window.getSelection ? window.getSelection().toString() : "";
             if (sel && sel.trim().length > 0) return sel;
 
@@ -313,11 +234,13 @@
             return container ? container.innerText || "" : "";
         }
 
-        function copyOutput() {
-            var text = getOutput();
-            var txt = document.getElementById("fab-copy-text");
+        function copyOutput(btn, labelSpan) {
+            var text = getTerminalOutput();
             if (!text || !text.trim()) {
-                if (txt) { txt.textContent = "Empty"; setTimeout(function() { txt.textContent = "Copy"; }, 1500); }
+                if (labelSpan) {
+                    labelSpan.textContent = "Empty";
+                    setTimeout(function() { labelSpan.textContent = "Copy"; }, 1500);
+                }
                 return;
             }
 
@@ -337,69 +260,86 @@
                 });
 
             p.then(function() {
-                if (txt) {
-                    txt.textContent = "Copied!";
-                    setTimeout(function() { txt.textContent = "Copy"; closeMenu(); }, 1500);
+                if (labelSpan) {
+                    labelSpan.textContent = "Copied!";
+                    btn.style.borderColor = "#38bdf8";
+                    setTimeout(function() {
+                        labelSpan.textContent = "Copy";
+                        btn.style.borderColor = "rgba(255, 255, 255, 0.15)";
+                    }, 2000);
                 }
             }).catch(function() {
-                if (txt) {
-                    txt.textContent = "Failed";
-                    setTimeout(function() { txt.textContent = "Copy"; }, 1500);
+                if (labelSpan) {
+                    labelSpan.textContent = "Failed";
+                    setTimeout(function() { labelSpan.textContent = "Copy"; }, 1500);
                 }
             });
         }
 
-        function toggleMenu() {
-            var menu = document.getElementById("term-fab-menu");
-            if (!menu) return;
-            if (menu.style.display === "flex") {
-                closeMenu();
+        // Inject action buttons into Cockpit's .terminal-group header
+        function setupHeaderActions() {
+            var group = document.querySelector(".terminal-group");
+            if (!group) return false;
+
+            if (document.getElementById("terminal-custom-actions")) return true;
+
+            var actionsContainer = document.createElement("div");
+            actionsContainer.id = "terminal-custom-actions";
+            actionsContainer.className = "terminal-header-actions";
+
+            // 1. Copy button
+            var copyBtn = document.createElement("button");
+            copyBtn.className = "term-action-btn";
+            copyBtn.type = "button";
+            copyBtn.title = "Copy terminal output";
+            copyBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span id="header-copy-label" style="pointer-events: none;">Copy</span>';
+            var copyLabel = copyBtn.querySelector("#header-copy-label");
+            copyBtn.addEventListener("click", function(e) {
+                e.preventDefault();
+                copyOutput(copyBtn, copyLabel);
+            });
+
+            // 2. Settings toggle button (Font size, Appearance)
+            var settingsBtn = document.createElement("button");
+            settingsBtn.className = "term-action-btn";
+            settingsBtn.type = "button";
+            settingsBtn.title = "Show / Hide Font size & Appearance settings";
+            settingsBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg><span style="pointer-events: none;">Settings</span>';
+
+            settingsBtn.addEventListener("click", function(e) {
+                e.preventDefault();
+                var toolbar = document.getElementById("toolbar") || document.querySelector(".terminal-group > .pf-v6-c-toolbar");
+                if (toolbar) {
+                    var isVisible = toolbar.classList.toggle("settings-visible");
+                    settingsBtn.classList.toggle("active", isVisible);
+                }
+            });
+
+            actionsContainer.appendChild(copyBtn);
+            actionsContainer.appendChild(settingsBtn);
+
+            var titleEl = group.querySelector(".terminal-title");
+            if (titleEl && titleEl.nextSibling) {
+                group.insertBefore(actionsContainer, titleEl.nextSibling);
             } else {
-                openMenu();
+                group.appendChild(actionsContainer);
             }
-        }
 
-        function openMenu() {
-            var menu = document.getElementById("term-fab-menu");
-            var toggle = document.getElementById("term-fab-toggle");
-            if (!menu) return;
-            menu.style.display = "flex";
-            if (toggle) toggle.style.opacity = "1";
-            ensureScrollback();
-
-            clearTimeout(hideMenuTimer);
-            hideMenuTimer = setTimeout(closeMenu, 6000);
-        }
-
-        function closeMenu() {
-            var menu = document.getElementById("term-fab-menu");
-            var toggle = document.getElementById("term-fab-toggle");
-            if (!menu) return;
-            menu.style.display = "none";
-            if (toggle) toggle.style.opacity = "0.45";
-            clearTimeout(hideMenuTimer);
+            return true;
         }
 
         function init() {
             setupTouchScroll();
 
-            var toggle = document.getElementById("term-fab-toggle");
-            var closeBtn = document.getElementById("fab-close");
-            var btnTop = document.getElementById("fab-top");
-            var btnUp = document.getElementById("fab-up");
-            var btnDown = document.getElementById("fab-down");
-            var btnEnd = document.getElementById("fab-end");
-            var btnCopy = document.getElementById("fab-copy");
+            // Continuously ensure header actions and scrollback once React mounts
+            var interval = setInterval(function() {
+                var done = setupHeaderActions();
+                ensureScrollback();
+                if (done) clearInterval(interval);
+            }, 300);
 
-            if (toggle) toggle.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); toggleMenu(); });
-            if (closeBtn) closeBtn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); closeMenu(); });
-            if (btnTop) btnTop.addEventListener("click", function(e) { e.preventDefault(); scrollToTop(); });
-            if (btnEnd) btnEnd.addEventListener("click", function(e) { e.preventDefault(); scrollToBottom(); });
-            if (btnUp) btnUp.addEventListener("click", function(e) { e.preventDefault(); scrollLines(-10); });
-            if (btnDown) btnDown.addEventListener("click", function(e) { e.preventDefault(); scrollLines(10); });
-            if (btnCopy) btnCopy.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); copyOutput(); });
-
-            setInterval(ensureScrollback, 1500);
+            // Re-check periodically
+            setInterval(ensureScrollback, 2000);
         }
 
         if (document.readyState === "loading") {
