@@ -95,6 +95,15 @@ deploy_local() {
     # Install package cleanly via pacman
     sudo pacman -U --noconfirm "$PKG_FILE"
 
+    # Install unified terminal enhancements (Copy, Settings toggle, 1000 lines scrollback)
+    if [ -f "tools/terminal.html" ]; then
+        if [ -f "/usr/share/cockpit/systemd/terminal.css.gz.orig" ]; then
+            sudo cp -f "/usr/share/cockpit/systemd/terminal.css.gz.orig" "/usr/share/cockpit/systemd/terminal.css.gz"
+        fi
+        sudo cp -f tools/terminal.html /usr/share/cockpit/systemd/terminal.html
+        sudo chmod 644 /usr/share/cockpit/systemd/terminal.html
+    fi
+
     # Restart Cockpit
     echo "Restarting Cockpit service & socket..."
     sudo systemctl restart cockpit.service cockpit.socket
@@ -107,17 +116,22 @@ deploy_local() {
 # Function to deploy to plex
 deploy_plex() {
     echo -e "\n\033[1;34m[2/3] Installing package on REMOTE host (plex: $REMOTE_PLEX)...\033[0m"
-    # Transfer package to /tmp
-    echo "Transferring $PKG_FILE to $REMOTE_PLEX:/tmp/..."
-    scp -o BatchMode=yes "$PKG_FILE" "${REMOTE_PLEX}:/tmp/${PKG_FILE}"
+    # Transfer package and terminal.html to /tmp
+    echo "Transferring $PKG_FILE and terminal.html to $REMOTE_PLEX:/tmp/..."
+    scp -o BatchMode=yes "$PKG_FILE" tools/terminal.html "${REMOTE_PLEX}:/tmp/"
 
-    # Install on remote, remove user overrides, restart service
-    echo "Installing package on remote via pacman -U..."
+    # Install on remote, remove user overrides, install terminal.html, restart service
+    echo "Installing package on remote via pacman -U and configuring terminal enhancements..."
     ssh -o BatchMode=yes "$REMOTE_PLEX" bash -s <<EOF
 set -e
 rm -rf "\$HOME/.local/share/cockpit/aur"
 sudo pacman -U --noconfirm "/tmp/${PKG_FILE}"
 rm -f "/tmp/${PKG_FILE}"
+if [ -f "/tmp/terminal.html" ]; then
+    sudo cp -f /tmp/terminal.html /usr/share/cockpit/systemd/terminal.html
+    sudo chmod 644 /usr/share/cockpit/systemd/terminal.html
+    rm -f /tmp/terminal.html
+fi
 sudo systemctl restart cockpit.service cockpit.socket
 EOF
 

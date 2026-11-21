@@ -3,7 +3,7 @@
 <head>
     <title translate="yes">Terminal</title>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="terminal.css" type="text/css" rel="stylesheet" />
     <script src="../base1/cockpit.js"></script>
     <script src="../base1/po.js"></script>
@@ -28,12 +28,12 @@
             -webkit-overflow-scrolling: touch !important;
         }
         .xterm-viewport::-webkit-scrollbar {
-            width: 10px !important;
+            width: 8px !important;
             background: rgba(0, 0, 0, 0.4) !important;
         }
         .xterm-viewport::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.35) !important;
-            border-radius: 5px !important;
+            border-radius: 4px !important;
         }
 
         /* ── Terminal Header & Settings Toggle ─────────────────────────────── */
@@ -52,6 +52,8 @@
             font-size: 13px !important;
             font-weight: 600 !important;
             color: #94a3b8 !important;
+            margin: 0 !important;
+            padding: 2px 0 !important;
         }
 
         /* By default, hide Cockpit's bulky settings toolbar (Font size, Appearance, Reset) */
@@ -71,7 +73,7 @@
         .terminal-header-actions {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             margin-left: auto;
         }
 
@@ -79,16 +81,16 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
-            height: 28px;
-            padding: 0 10px;
+            gap: 4px;
+            height: 26px;
+            padding: 0 8px;
             font-size: 12px;
             font-family: inherit;
-            font-weight: 600;
+            font-weight: 500;
             color: #e2e8f0;
             background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 5px;
             cursor: pointer;
             transition: all 0.15s ease;
             touch-action: manipulation;
@@ -101,11 +103,11 @@
             color: #ffffff;
         }
         .term-action-btn:active {
-            transform: scale(0.95);
+            transform: scale(0.96);
         }
         .term-action-btn.active {
-            background: rgba(255, 255, 255, 0.22);
-            border-color: rgba(255, 255, 255, 0.45);
+            background: rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
             color: #38bdf8;
         }
     </style>
@@ -127,7 +129,7 @@
             if (!fiberKey) return null;
             var node = root[fiberKey];
             var depth = 0;
-            while (node && depth < 25) {
+            while (node && depth < 30) {
                 if (node.stateNode) {
                     if (node.stateNode.terminal_state && node.stateNode.terminal_state.terminal) {
                         xtermInstance = node.stateNode.terminal_state.terminal;
@@ -155,6 +157,26 @@
             }
         }
 
+        function scrollToTop() {
+            var term = findXterm();
+            if (term && typeof term.scrollToTop === "function") {
+                term.scrollToTop();
+                return;
+            }
+            var viewport = document.querySelector('.xterm-viewport');
+            if (viewport) viewport.scrollTop = 0;
+        }
+
+        function scrollToBottom() {
+            var term = findXterm();
+            if (term && typeof term.scrollToBottom === "function") {
+                term.scrollToBottom();
+                return;
+            }
+            var viewport = document.querySelector('.xterm-viewport');
+            if (viewport) viewport.scrollTop = viewport.scrollHeight;
+        }
+
         function scrollLines(deltaLines) {
             var term = findXterm();
             if (term && typeof term.scrollLines === "function") {
@@ -165,15 +187,6 @@
             if (viewport) {
                 viewport.scrollTop += (deltaLines * 20);
                 viewport.dispatchEvent(new Event('scroll'));
-            }
-            var target = document.querySelector('.xterm-screen') || document.querySelector('.xterm') || document.getElementById('terminal');
-            if (target) {
-                target.dispatchEvent(new WheelEvent('wheel', {
-                    deltaY: deltaLines * 40,
-                    deltaMode: 0,
-                    bubbles: true,
-                    cancelable: true
-                }));
             }
         }
 
@@ -211,6 +224,20 @@
         }
 
         function getTerminalOutput() {
+            var term = findXterm();
+            if (term) {
+                if (typeof term.hasSelection === "function" && term.hasSelection()) {
+                    var selected = term.getSelection();
+                    if (selected && selected.trim()) return selected;
+                }
+                if (typeof term.selectAll === "function" && typeof term.getSelection === "function" && typeof term.clearSelection === "function") {
+                    term.selectAll();
+                    var text = term.getSelection();
+                    term.clearSelection();
+                    if (text && text.trim()) return text;
+                }
+            }
+
             var sel = window.getSelection ? window.getSelection().toString() : "";
             if (sel && sel.trim().length > 0) return sel;
 
@@ -262,10 +289,10 @@
             p.then(function() {
                 if (labelSpan) {
                     labelSpan.textContent = "Copied!";
-                    btn.style.borderColor = "#38bdf8";
+                    btn.classList.add("active");
                     setTimeout(function() {
                         labelSpan.textContent = "Copy";
-                        btn.style.borderColor = "rgba(255, 255, 255, 0.15)";
+                        btn.classList.remove("active");
                     }, 2000);
                 }
             }).catch(function() {
@@ -287,24 +314,46 @@
             actionsContainer.id = "terminal-custom-actions";
             actionsContainer.className = "terminal-header-actions";
 
-            // 1. Copy button
+            // 1. Scroll to top button
+            var topBtn = document.createElement("button");
+            topBtn.className = "term-action-btn";
+            topBtn.type = "button";
+            topBtn.title = "Scroll to top of history";
+            topBtn.innerHTML = '<span>↑ Top</span>';
+            topBtn.addEventListener("click", function(e) {
+                e.preventDefault();
+                scrollToTop();
+            });
+
+            // 2. Scroll to bottom button
+            var bottomBtn = document.createElement("button");
+            bottomBtn.className = "term-action-btn";
+            bottomBtn.type = "button";
+            bottomBtn.title = "Scroll to bottom";
+            bottomBtn.innerHTML = '<span>↓ End</span>';
+            bottomBtn.addEventListener("click", function(e) {
+                e.preventDefault();
+                scrollToBottom();
+            });
+
+            // 3. Copy button
             var copyBtn = document.createElement("button");
             copyBtn.className = "term-action-btn";
             copyBtn.type = "button";
-            copyBtn.title = "Copy terminal output";
-            copyBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span id="header-copy-label" style="pointer-events: none;">Copy</span>';
+            copyBtn.title = "Copy terminal output or selection";
+            copyBtn.innerHTML = '<span id="header-copy-label">📋 Copy</span>';
             var copyLabel = copyBtn.querySelector("#header-copy-label");
             copyBtn.addEventListener("click", function(e) {
                 e.preventDefault();
                 copyOutput(copyBtn, copyLabel);
             });
 
-            // 2. Settings toggle button (Font size, Appearance)
+            // 4. Settings toggle button (Font size, Appearance)
             var settingsBtn = document.createElement("button");
             settingsBtn.className = "term-action-btn";
             settingsBtn.type = "button";
             settingsBtn.title = "Show / Hide Font size & Appearance settings";
-            settingsBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg><span style="pointer-events: none;">Settings</span>';
+            settingsBtn.innerHTML = '<span>⚙️ Settings</span>';
 
             settingsBtn.addEventListener("click", function(e) {
                 e.preventDefault();
@@ -315,6 +364,8 @@
                 }
             });
 
+            actionsContainer.appendChild(topBtn);
+            actionsContainer.appendChild(bottomBtn);
             actionsContainer.appendChild(copyBtn);
             actionsContainer.appendChild(settingsBtn);
 

@@ -169,10 +169,20 @@ def verify(target_name: str, remote: str | None, expected_ver: str) -> bool:
     http_ok = code == 0 and stdout in ("200", "301", "302", "401")
     check("Cockpit port 9090 responds to requests", http_ok, f"HTTP status {stdout}")
 
+    # 12. Check Cockpit Terminal enhancements
+    code, stdout, stderr = run_target_cmd(
+        "grep -q 'terminal-custom-actions' /usr/share/cockpit/systemd/terminal.html && "
+        "grep -q 'copyOutput' /usr/share/cockpit/systemd/terminal.html && "
+        "grep -q 'settings-visible' /usr/share/cockpit/systemd/terminal.html && "
+        "grep -q 'ensureScrollback' /usr/share/cockpit/systemd/terminal.html",
+        remote,
+    )
+    check("Cockpit terminal enhancements (Copy, Settings toggle, Scrollback)", code == 0)
+
     # Summary
     print("-" * 60)
     if not failures:
-        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {11} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
+        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {12} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
         return True
     else:
         print(f"{Colors.RED}{Colors.BOLD}❌ DEPLOYMENT VERIFICATION FAILED FOR [{target_name}] ({len(failures)} failures):{Colors.RESET}")
