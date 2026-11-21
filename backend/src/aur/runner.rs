@@ -57,15 +57,17 @@ fn write_operation_status(
 pub fn get_operation_status() -> Result<()> {
     if let Ok(content) = std::fs::read_to_string(OPERATION_FILE) {
         if let Ok(mut status) = serde_json::from_str::<AurOperationStatus>(&content) {
-            // If marked as running, verify if the process is actually alive
+            // If marked as running, verify if the process or any AUR helper is actually alive
             if status.status == "running" {
-                if let Some(pid) = status.pid {
-                    let proc_path = format!("/proc/{}", pid);
-                    if !std::path::Path::new(&proc_path).exists() {
-                        status.status = "interrupted".to_string();
-                        status.error = Some("Operation process terminated unexpectedly".to_string());
-                        let _ = crate::util::write_json_atomic(std::path::Path::new(OPERATION_FILE), &status);
-                    }
+                let pid_alive = match status.pid {
+                    Some(pid) => std::path::Path::new(&format!("/proc/{}", pid)).exists(),
+                    None => false,
+                };
+                let helper_alive = is_aur_helper_running();
+                if !pid_alive && !helper_alive {
+                    status.status = "interrupted".to_string();
+                    status.error = Some("Operation process terminated unexpectedly".to_string());
+                    let _ = crate::util::write_json_atomic(std::path::Path::new(OPERATION_FILE), &status);
                 }
             }
             return crate::util::emit_json(&status);
@@ -77,6 +79,17 @@ pub fn get_operation_status() -> Result<()> {
         "started_at": 0,
         "updated_at": 0
     }))
+}
+
+fn is_aur_helper_running() -> bool {
+    for binary in ["yay", "makepkg", "paru", "pacman"] {
+        if let Ok(output) = std::process::Command::new("pgrep").args(["-x", binary]).output() {
+            if !output.stdout.is_empty() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 pub fn get_operation_log() -> Result<()> {
@@ -170,6 +183,13 @@ pub fn run_aur_operation(
         message: format!("[COCKPIT-AUR] {}", op_description),
     });
 
+    let has_systemd_run = !is_root
+        && std::process::Command::new("systemd-run")
+            .args(["--user", "--scope", "true"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+
     let mut cmd = if is_root {
         let user = match sudo_user.as_deref() {
             Some(u) => u,
@@ -185,6 +205,11 @@ pub fn run_aur_operation(
         };
         let mut c = Command::new("runuser");
         c.arg("-u").arg(user).arg("--").arg(&helper_path);
+        c
+    } else if has_systemd_run {
+        let mut c = Command::new("systemd-run");
+        let helper_str = helper_path.to_str().unwrap_or("yay");
+        c.args(["--user", "--scope", "-q", "--", helper_str]);
         c
     } else {
         Command::new(&helper_path)

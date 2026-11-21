@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.e2e.json",
     "lint": "eslint src/ e2e/",
     "lint:fix": "eslint src/ --fix",
-    "test": "LC_ALL=C.UTF-8 vitest run",
+    "test": "LANG=C.UTF-8 LC_ALL=C.UTF-8 vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
