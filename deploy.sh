@@ -104,8 +104,79 @@ else
     echo -e "\033[1;32m✓ Package built successfully: $PKG_FILE\033[0m"
 fi
 
+# Safety check: Wait for running upgrade operations to finish cleanly before deploying
+wait_for_safe_deploy() {
+    local host_type="$1" # "local" or "remote"
+    local poll_interval=4
+    local waited=0
+    local max_wait=7200 # Up to 2 hours for long builds
+
+    while true; do
+        local is_busy=0
+        local reason=""
+
+        if [ "$host_type" = "local" ]; then
+            if [ -f "/var/lib/pacman/db.lck" ]; then
+                is_busy=1
+                reason="pacman database is locked (/var/lib/pacman/db.lck exists)"
+            elif [ -f "/tmp/cockpit-aur-operation.json" ]; then
+                local pid
+                pid=$(grep -o '"pid":[0-9]*' /tmp/cockpit-aur-operation.json 2>/dev/null | cut -d':' -f2 || true)
+                local status
+                status=$(grep -o '"status":"[^"]*"' /tmp/cockpit-aur-operation.json 2>/dev/null | cut -d'"' -f4 || true)
+                if [ "$status" = "running" ] && [ -n "$pid" ] && [ -d "/proc/$pid" ]; then
+                    is_busy=1
+                    reason="AUR upgrade operation is active (PID: $pid)"
+                fi
+            elif pgrep -x yay >/dev/null 2>&1 || pgrep -x pacman >/dev/null 2>&1; then
+                is_busy=1
+                reason="package manager process is running (yay/pacman)"
+            fi
+        else
+            local remote_check
+            remote_check=$(ssh -o BatchMode=yes "$REMOTE_PLEX" bash -c '
+                if [ -f "/var/lib/pacman/db.lck" ]; then
+                    echo "LOCKED:pacman database is locked (/var/lib/pacman/db.lck)"
+                elif [ -f "/tmp/cockpit-aur-operation.json" ]; then
+                    pid=$(grep -o "\"pid\":[0-9]*" /tmp/cockpit-aur-operation.json 2>/dev/null | cut -d":" -f2 || true)
+                    status=$(grep -o "\"status\":\"[^\"]*\"" /tmp/cockpit-aur-operation.json 2>/dev/null | cut -d"\"" -f4 || true)
+                    if [ "$status" = "running" ] && [ -n "$pid" ] && [ -d "/proc/$pid" ]; then
+                        echo "LOCKED:AUR upgrade is active (PID: $pid)"
+                    fi
+                elif pgrep -x yay >/dev/null 2>&1 || pgrep -x pacman >/dev/null 2>&1; then
+                    echo "LOCKED:package manager process is running (yay/pacman)"
+                fi
+            ' 2>/dev/null || true)
+            if [ -n "$remote_check" ]; then
+                is_busy=1
+                reason="${remote_check#LOCKED:}"
+            fi
+        fi
+
+        if [ "$is_busy" -eq 1 ]; then
+            echo -e "\033[1;33m⏳ [Safe Deploy Gate] ${host_type} host is busy: ${reason}.\033[0m"
+            echo -e "\033[1;33m   Waiting for ongoing upgrade/build to finish safely... (${waited}s elapsed)\033[0m"
+            sleep "$poll_interval"
+            waited=$((waited + poll_interval))
+            if [ "$waited" -ge "$max_wait" ]; then
+                echo -e "\033[1;31m❌ [Safe Deploy Gate] Timed out waiting for active operations to complete.\033[0m" >&2
+                return 1
+            fi
+        else
+            if [ "$waited" -gt 0 ]; then
+                echo -e "\033[1;32m✓ [Safe Deploy Gate] Ongoing operation finished. Safe to proceed with deploy on ${host_type}.\033[0m"
+            else
+                echo -e "\033[1;32m✓ [Safe Deploy Gate] No active operations on ${host_type}. Safe to deploy.\033[0m"
+            fi
+            break
+        fi
+    done
+}
+
 # Function to deploy locally to vampa
 deploy_local() {
+    wait_for_safe_deploy "local"
+
     echo -e "\n\033[1;34m[2/3] Installing package on LOCAL host (vampa)...\033[0m"
     # Remove any shadowing user override
     rm -rf "$HOME/.local/share/cockpit/aur"
@@ -122,6 +193,12 @@ deploy_local() {
         sudo chmod 644 /usr/share/cockpit/systemd/terminal.html
     fi
 
+    # Install overview MOTD ANSI colorizer
+    if [ -f "tools/overview-index.html" ]; then
+        sudo cp -f tools/overview-index.html /usr/share/cockpit/systemd/index.html
+        sudo chmod 644 /usr/share/cockpit/systemd/index.html
+    fi
+
     # Restart Cockpit
     echo "Restarting Cockpit service & socket..."
     sudo systemctl restart cockpit.service cockpit.socket
@@ -133,13 +210,15 @@ deploy_local() {
 
 # Function to deploy to plex
 deploy_plex() {
-    echo -e "\n\033[1;34m[2/3] Installing package on REMOTE host (plex: $REMOTE_PLEX)...\033[0m"
-    # Transfer package and terminal.html to /tmp
-    echo "Transferring $PKG_FILE and terminal.html to $REMOTE_PLEX:/tmp/..."
-    scp -o BatchMode=yes "$PKG_FILE" tools/terminal.html "${REMOTE_PLEX}:/tmp/"
+    wait_for_safe_deploy "remote"
 
-    # Install on remote, remove user overrides, install terminal.html, restart service
-    echo "Installing package on remote via pacman -U and configuring terminal enhancements..."
+    echo -e "\n\033[1;34m[2/3] Installing package on REMOTE host (plex: $REMOTE_PLEX)...\033[0m"
+    # Transfer package, terminal.html, and overview-index.html to /tmp
+    echo "Transferring $PKG_FILE, terminal.html, and overview-index.html to $REMOTE_PLEX:/tmp/..."
+    scp -o BatchMode=yes "$PKG_FILE" tools/terminal.html tools/overview-index.html "${REMOTE_PLEX}:/tmp/"
+
+    # Install on remote, remove user overrides, install terminal & overview enhancements, restart service
+    echo "Installing package on remote via pacman -U and configuring enhancements..."
     ssh -o BatchMode=yes "$REMOTE_PLEX" bash -s <<EOF
 set -e
 rm -rf "\$HOME/.local/share/cockpit/aur"
@@ -152,6 +231,11 @@ if [ -f "/tmp/terminal.html" ]; then
     sudo cp -f /tmp/terminal.html /usr/share/cockpit/systemd/terminal.html
     sudo chmod 644 /usr/share/cockpit/systemd/terminal.html
     rm -f /tmp/terminal.html
+fi
+if [ -f "/tmp/overview-index.html" ]; then
+    sudo cp -f /tmp/overview-index.html /usr/share/cockpit/systemd/index.html
+    sudo chmod 644 /usr/share/cockpit/systemd/index.html
+    rm -f /tmp/overview-index.html
 fi
 sudo systemctl restart cockpit.service cockpit.socket
 EOF

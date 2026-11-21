@@ -220,10 +220,18 @@ def verify(target_name: str, remote: str | None, expected_ver: str) -> bool:
     status_ok = code == 0 and "status" in stdout
     check("Backend aur-operation-status reports valid status JSON", status_ok)
 
+    # 16. Check Cockpit Overview MOTD colorizer enhancement
+    code, stdout, stderr = run_target_cmd(
+        "grep -q 'colorizeMotd' /usr/share/cockpit/systemd/index.html && "
+        "grep -q 'ansiToHtml' /usr/share/cockpit/systemd/index.html",
+        remote,
+    )
+    check("Cockpit overview MOTD ANSI colorizer", code == 0)
+
     # Summary
     print("-" * 60)
     if not failures:
-        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {15} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
+        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {16} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
         return True
     else:
         print(f"{Colors.RED}{Colors.BOLD}❌ DEPLOYMENT VERIFICATION FAILED FOR [{target_name}] ({len(failures)} failures):{Colors.RESET}")

@@ -699,10 +699,16 @@ fn main() {
         "list-ignored" => list_ignored(),
         "get-settings" => get_settings(),
         "set-settings" => {
-            let security = args
-                .get(2)
-                .filter(|s| !s.is_empty())
-                .and_then(|s| parse_bool_arg(s));
+            let security = match args.get(2).filter(|s| !s.is_empty()) {
+                None => None,
+                Some(s) => match parse_bool_arg(s) {
+                    Some(b) => Some(b),
+                    None => {
+                        eprintln!("Error: set-settings expects true or false for security-advisories");
+                        std::process::exit(1);
+                    }
+                },
+            };
             let aur_cache_ttl = args
                 .get(3)
                 .filter(|s| !s.is_empty())

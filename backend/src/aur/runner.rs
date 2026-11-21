@@ -56,7 +56,18 @@ fn write_operation_status(
 
 pub fn get_operation_status() -> Result<()> {
     if let Ok(content) = std::fs::read_to_string(OPERATION_FILE) {
-        if let Ok(status) = serde_json::from_str::<AurOperationStatus>(&content) {
+        if let Ok(mut status) = serde_json::from_str::<AurOperationStatus>(&content) {
+            // If marked as running, verify if the process is actually alive
+            if status.status == "running" {
+                if let Some(pid) = status.pid {
+                    let proc_path = format!("/proc/{}", pid);
+                    if !std::path::Path::new(&proc_path).exists() {
+                        status.status = "interrupted".to_string();
+                        status.error = Some("Operation process terminated unexpectedly".to_string());
+                        let _ = crate::util::write_json_atomic(std::path::Path::new(OPERATION_FILE), &status);
+                    }
+                }
+            }
             return crate::util::emit_json(&status);
         }
     }
