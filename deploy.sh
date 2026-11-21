@@ -54,9 +54,12 @@ for arg in "$@"; do
     esac
 done
 
-# Read version from package.json
+# Determine package file dynamically from makepkg and PKGBUILD (no hardcoded pkgrel or arch)
+PKG_FILE_PATH="$(makepkg --packagelist | head -n 1)"
+PKG_FILE="$(basename "$PKG_FILE_PATH")"
+
+# Read version from package.json or PKGBUILD
 VERSION=$(node -p "require('./package.json').version")
-PKG_FILE="cockpit-aur-${VERSION}-1-x86_64.pkg.tar.zst"
 
 echo -e "\033[1;36m============================================================\033[0m"
 echo -e "\033[1;36m🚀 COCKPIT-AUR DEPLOYMENT PIPELINE (v${VERSION})\033[0m"
