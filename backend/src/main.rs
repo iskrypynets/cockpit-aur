@@ -165,7 +165,7 @@ Commands:
   aur-helper             Detect installed AUR helper (yay or paru)
   aur-install NAME [helper] [timeout]
                          Install an AUR package using yay or paru
-  aur-upgrade [helper] [timeout]
+  aur-upgrade [helper] [timeout] [packages]
                          Upgrade installed AUR packages using yay or paru
   aur-operation-status   Get current background AUR operation status
   aur-operation-log      Read logs of current or recent background AUR operation
@@ -584,8 +584,17 @@ fn main() {
         "aur-upgrade" => {
             let helper = arg_opt(&args, 2).filter(|s| !s.is_empty());
             let timeout = args.get(3).filter(|s| !s.is_empty()).and_then(|s| s.parse().ok());
+            let packages = args
+                .get(4)
+                .map(|s| {
+                    s.split(',')
+                        .map(|p| p.trim().to_string())
+                        .filter(|p| !p.is_empty())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
             cockpit_aur_backend::aur::run_aur_operation(
-                cockpit_aur_backend::aur::AurOperation::Upgrade,
+                cockpit_aur_backend::aur::AurOperation::Upgrade(&packages),
                 helper.as_deref(),
                 timeout,
             )

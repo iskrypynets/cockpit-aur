@@ -36,7 +36,7 @@ export function useSecurityAdvisories(): {
     try {
       const settings = await getSettings();
       if (request !== sequence.current) return;
-      setEnabledState(settings.security_advisories);
+      setEnabledState(settings.security_advisories ?? null);
       if (settings.security_advisories === null) {
         throw new Error("Saved advisory setting is unavailable");
       }

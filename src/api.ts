@@ -59,7 +59,6 @@ import type {
   SecurityInfoResponse,
   SecurityResponse,
   ServicesStatus,
-  SettingsResponse,
   SettingsSetResponse,
   SignoffActionResponse,
   SignoffBatchResponse,
@@ -359,6 +358,13 @@ export async function getSecurityInfo(name: string): Promise<SecurityInfoRespons
   return runBackend<SecurityInfoResponse>("security-info", [name], { superuser: "none" });
 }
 
+export type SettingsResponse = {
+  security_advisories?: boolean | null;
+  aur_cache_ttl_secs?: bigint | number | null;
+  aur_upgrade_timeout_secs?: bigint | number | null;
+  aur_rpc_timeout_secs?: bigint | number | null;
+};
+
 export async function getSettings(): Promise<SettingsResponse> {
   return runBackend<SettingsResponse>("get-settings", [], { superuser: "none" });
 }
@@ -386,9 +392,11 @@ export async function clearAurCache(): Promise<{ success: boolean; message: stri
 }
 
 export interface AurOperationStatus {
-  status: "idle" | "running" | "completed" | "failed" | "cancelled";
+  status: "idle" | "running" | "completed" | "failed" | "cancelled" | "interrupted";
   operation: string;
   target?: string;
+  packages?: string[];
+  total?: number;
   pid?: number;
   started_at: number;
   updated_at: number;
@@ -1291,9 +1299,12 @@ export function installAurPackage(
 export function upgradeAurPackages(
   callbacks: UpgradeCallbacks,
   helper?: string,
+  packages?: string[],
 ): StreamingHandle {
   const args: string[] = [helper || ""];
   if (callbacks.timeout !== undefined) args.push(String(callbacks.timeout));
+  else args.push("");
+  if (packages && packages.length > 0) args.push(packages.join(","));
   return runStreamingBackend(
     "aur-upgrade",
     args,

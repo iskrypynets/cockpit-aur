@@ -1000,9 +1000,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
     }
   }, [state, updates.length, scheduledUnacked, latestScheduledRun, errorOrigin, adminAllowed, databaseTimes]);
 
-  useEffect(() => {
-    void Promise.resolve().then(() => loadUpdates());
-  }, [loadUpdates]);
+  // Initial update check is sequenced with AUR background operation check below
 
   const previouslyVisible = useRef(hasBeenVisible);
   useEffect(() => {
@@ -1128,13 +1126,15 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
       .then((status) => {
         if (!active) return;
         if (status.status === "running") {
+          const total = status.total || 1;
+          const pkgs = status.packages || [];
           setState("applying");
           setUpgradeProgress({
             value: 50,
             phase: "aur",
-            phaseLabel: "Upgrading AUR packages (in progress)",
-            stepLabel: "Reconnected to active background upgrade",
-            item: "",
+            phaseLabel: `Upgrading AUR packages (${pkgs.length > 0 ? "in progress" : "running"})`,
+            stepLabel: total > 1 ? `Reconnected to active background upgrade (${total} packages)` : "Reconnected to active background upgrade",
+            item: pkgs[0] ?? "",
             stage: "transaction",
             fileBytes: {},
             removeTotal: 0,
@@ -1144,7 +1144,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
               replaceLog(data.log);
               for (const line of data.log.split("\n")) {
                 if (line.trim()) {
-                  setUpgradeProgress((prev) => reduceAurProgress(prev, line, 1));
+                  setUpgradeProgress((prev) => reduceAurProgress(prev, line, total, pkgs));
                 }
               }
             }
@@ -1157,13 +1157,16 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
                   replaceLog(data.log);
                   for (const line of data.log.split("\n")) {
                     if (line.trim()) {
-                      setUpgradeProgress((prev) => reduceAurProgress(prev, line, 1));
+                      setUpgradeProgress((prev) => reduceAurProgress(prev, line, total, pkgs));
                     }
                   }
                 }
               });
               if (st.status !== "running") {
-                if (interval) clearInterval(interval);
+                if (interval) {
+                  clearInterval(interval);
+                  interval = undefined;
+                }
                 if (st.status === "completed" || st.exit_code === 0) {
                   announce("AUR upgrade completed successfully");
                   loadUpdates();
@@ -1177,16 +1180,31 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
                 }
               }
             }).catch(() => {});
-          }, 2000);
+          }, 1500);
+        } else if (
+          status.status === "completed" &&
+          status.updated_at &&
+          Date.now() / 1000 - status.updated_at < 60
+        ) {
+          getAurOperationLog().then((data) => {
+            if (active && data.log) replaceLog(data.log);
+          });
+          setState("success");
+          announce("AUR upgrade completed successfully");
+          void loadUpdates();
+        } else {
+          void loadUpdates();
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (active) void loadUpdates();
+      });
 
     return () => {
       active = false;
       if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [loadUpdates, announce, failWith, replaceLog]);
   // On subsequent loads, preserve user selections
   useEffect(() => {
     const seen = seenNamesRef.current;
@@ -1474,7 +1492,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
           announce("AUR upgrade failed", { assertive: true });
           failWith("upgrade", err, code, details);
         },
-      });
+      }, undefined, resolvedAurPackages);
     };
 
     if (hasRepoUpdates) {

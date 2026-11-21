@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::process::{Command, Stdio};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use super::helper::{detect_helper, find_helper_path};
@@ -12,12 +14,17 @@ use crate::validation::validate_package_name;
 
 const OPERATION_FILE: &str = "/tmp/cockpit-aur-operation.json";
 const LOG_FILE: &str = "/tmp/cockpit-aur-upgrade.log";
+const EXIT_CODE_FILE: &str = "/tmp/cockpit-aur-upgrade.exit";
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AurOperationStatus {
-    pub status: String, // "idle", "running", "completed", "failed", "cancelled"
+    pub status: String, // "idle", "running", "completed", "failed", "cancelled", "interrupted"
     pub operation: String,
     pub target: Option<String>,
+    #[serde(default)]
+    pub packages: Vec<String>,
+    #[serde(default)]
+    pub total: usize,
     pub pid: Option<u32>,
     pub started_at: u64,
     pub updated_at: u64,
@@ -36,6 +43,7 @@ fn write_operation_status(
     status: &str,
     operation: &str,
     target: Option<&str>,
+    packages: &[String],
     pid: Option<u32>,
     started_at: u64,
     exit_code: Option<i32>,
@@ -45,6 +53,8 @@ fn write_operation_status(
         status: status.to_string(),
         operation: operation.to_string(),
         target: target.map(|s| s.to_string()),
+        packages: packages.to_vec(),
+        total: packages.len(),
         pid,
         started_at,
         updated_at: current_timestamp(),
@@ -57,6 +67,24 @@ fn write_operation_status(
 pub fn get_operation_status() -> Result<()> {
     if let Ok(content) = std::fs::read_to_string(OPERATION_FILE) {
         if let Ok(mut status) = serde_json::from_str::<AurOperationStatus>(&content) {
+            // Check if the exit code file exists
+            if let Ok(exit_str) = std::fs::read_to_string(EXIT_CODE_FILE) {
+                if let Ok(code) = exit_str.trim().parse::<i32>() {
+                    if code == 0 {
+                        status.status = "completed".to_string();
+                        status.exit_code = Some(0);
+                        status.error = None;
+                    } else {
+                        status.status = "failed".to_string();
+                        status.exit_code = Some(code);
+                        status.error = Some(format!("AUR operation failed with exit code {code}"));
+                    }
+                    status.updated_at = current_timestamp();
+                    let _ = crate::util::write_json_atomic(std::path::Path::new(OPERATION_FILE), &status);
+                    return crate::util::emit_json(&status);
+                }
+            }
+
             // If marked as running, verify if the process or any AUR helper is actually alive
             if status.status == "running" {
                 let pid_alive = match status.pid {
@@ -76,6 +104,10 @@ pub fn get_operation_status() -> Result<()> {
     crate::util::emit_json(&serde_json::json!({
         "status": "idle",
         "operation": "none",
+        "target": null,
+        "packages": [],
+        "total": 0,
+        "pid": null,
         "started_at": 0,
         "updated_at": 0
     }))
@@ -105,10 +137,10 @@ fn append_to_log_file(line: &str) {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum AurOperation<'a> {
     Install(&'a str),
-    Upgrade,
+    Upgrade(&'a [String]),
 }
 
 pub fn run_aur_operation(
@@ -163,17 +195,20 @@ pub fn run_aur_operation(
     let helper_path = find_helper_path(&helper_name)
         .ok_or_else(|| anyhow!("Failed to locate helper executable for '{helper_name}'"))?;
 
-    let op_description = match op {
+    let op_description = match &op {
         AurOperation::Install(pkg) => format!("Installing AUR package '{pkg}' using {helper_name}"),
-        AurOperation::Upgrade => format!("Upgrading AUR packages using {helper_name}"),
+        AurOperation::Upgrade(pkgs) if !pkgs.is_empty() => {
+            format!("Upgrading {} AUR package(s) using {helper_name}", pkgs.len())
+        }
+        AurOperation::Upgrade(_) => format!("Upgrading AUR packages using {helper_name}"),
     };
 
     if let Ok(handle) = crate::alpm::get_handle() {
-        let log_msg = match op {
+        let log_msg = match &op {
             AurOperation::Install(pkg) => {
                 format!("Running 'cockpit-aur aur-install {pkg}' (cockpit)\n")
             }
-            AurOperation::Upgrade => "Running 'cockpit-aur aur-upgrade' (cockpit)\n".to_string(),
+            AurOperation::Upgrade(_) => "Running 'cockpit-aur aur-upgrade' (cockpit)\n".to_string(),
         };
         let _ = handle.log_action("COCKPIT-AUR", log_msg);
     }
@@ -190,6 +225,62 @@ pub fn run_aur_operation(
             .map(|o| o.status.success())
             .unwrap_or(false);
 
+    let mut helper_cmd_args: Vec<String> = Vec::new();
+    helper_cmd_args.push(helper_path.to_string_lossy().to_string());
+
+    match (&helper_name[..], &op) {
+        ("yay", AurOperation::Install(pkg)) => {
+            helper_cmd_args.extend([
+                "-S".into(),
+                pkg.to_string(),
+                "--noconfirm".into(),
+                "--answerclean".into(),
+                "None".into(),
+                "--answerdiff".into(),
+                "None".into(),
+                "--answeredit".into(),
+                "None".into(),
+                "--answerupgrade".into(),
+                "None".into(),
+            ]);
+        }
+        ("yay", AurOperation::Upgrade(_)) => {
+            helper_cmd_args.extend([
+                "-Sua".into(),
+                "--noconfirm".into(),
+                "--answerclean".into(),
+                "None".into(),
+                "--answerdiff".into(),
+                "None".into(),
+                "--answeredit".into(),
+                "None".into(),
+                "--answerupgrade".into(),
+                "None".into(),
+            ]);
+        }
+        ("paru", AurOperation::Install(pkg)) => {
+            helper_cmd_args.extend(["-S".into(), pkg.to_string(), "--noconfirm".into(), "--skipreview".into()]);
+        }
+        ("paru", AurOperation::Upgrade(_)) => {
+            helper_cmd_args.extend(["-Sua".into(), "--noconfirm".into(), "--skipreview".into()]);
+        }
+        _ => return Err(anyhow!("Unsupported AUR helper '{helper_name}'")),
+    }
+
+    // Reset previous exit code file and truncate previous log file
+    let _ = std::fs::remove_file(EXIT_CODE_FILE);
+    let _ = std::fs::write(LOG_FILE, "");
+
+    append_to_log_file(&format!("[COCKPIT-AUR] {op_description}"));
+
+    // We execute the helper via a shell script wrapper that redirects stdout and stderr
+    // directly to LOG_FILE and writes the exit code to EXIT_CODE_FILE.
+    // This provides 100% resilience against broken pipes (SIGPIPE) when Cockpit session
+    // disconnects, and guarantees the exit code is saved to disk even if the parent dies!
+    let shell_script = format!(
+        "\"$@\" > '{LOG_FILE}' 2>&1; ret=$?; echo $ret > '{EXIT_CODE_FILE}'; exit $ret"
+    );
+
     let mut cmd = if is_root {
         let user = match sudo_user.as_deref() {
             Some(u) => u,
@@ -204,174 +295,108 @@ pub fn run_aur_operation(
             }
         };
         let mut c = Command::new("runuser");
-        c.arg("-u").arg(user).arg("--").arg(&helper_path);
+        c.arg("-u").arg(user).arg("--").arg("sh").arg("-c").arg(&shell_script).arg("--");
+        c.args(&helper_cmd_args);
         c
     } else if has_systemd_run {
         let mut c = Command::new("systemd-run");
-        let helper_str = helper_path.to_str().unwrap_or("yay");
-        c.args(["--user", "--scope", "-q", "--", helper_str]);
+        c.args(["--user", "--scope", "-q", "--", "sh", "-c", &shell_script, "--"]);
+        c.args(&helper_cmd_args);
         c
     } else {
-        Command::new(&helper_path)
+        let mut c = Command::new("sh");
+        c.args(["-c", &shell_script, "--"]);
+        c.args(&helper_cmd_args);
+        c
     };
-
-    match (helper_name.as_str(), op) {
-        ("yay", AurOperation::Install(pkg)) => {
-            cmd.args([
-                "-S",
-                pkg,
-                "--noconfirm",
-                "--answerclean",
-                "None",
-                "--answerdiff",
-                "None",
-                "--answeredit",
-                "None",
-                "--answerupgrade",
-                "None",
-            ]);
-        }
-        ("yay", AurOperation::Upgrade) => {
-            cmd.args([
-                "-Sua",
-                "--noconfirm",
-                "--answerclean",
-                "None",
-                "--answerdiff",
-                "None",
-                "--answeredit",
-                "None",
-                "--answerupgrade",
-                "None",
-            ]);
-        }
-        ("paru", AurOperation::Install(pkg)) => {
-            cmd.args(["-S", pkg, "--noconfirm", "--skipreview"]);
-        }
-        ("paru", AurOperation::Upgrade) => {
-            cmd.args(["-Sua", "--noconfirm", "--skipreview"]);
-        }
-        _ => return Err(anyhow!("Unsupported AUR helper '{helper_name}'")),
-    }
 
     use std::os::unix::process::CommandExt;
 
     cmd.stdin(Stdio::null());
-    cmd.stdout(Stdio::piped());
-    cmd.stderr(Stdio::piped());
-    // Put child (yay/paru and its compilation processes) in its own process group
-    // so signals from Cockpit session drops or controlling terminals never abort builds.
+    cmd.stdout(Stdio::null());
+    cmd.stderr(Stdio::null());
+    // Put child in its own process group
     cmd.process_group(0);
 
     let mut child = cmd
         .spawn()
         .with_context(|| format!("Failed to spawn {helper_name}"))?;
 
-    let (op_name, op_target) = match op {
-        AurOperation::Install(pkg) => ("install", Some(pkg)),
-        AurOperation::Upgrade => ("upgrade", None),
+    let (op_name, op_target, op_packages) = match &op {
+        AurOperation::Install(pkg) => ("install", Some(*pkg), vec![pkg.to_string()]),
+        AurOperation::Upgrade(pkgs) => ("upgrade", None, pkgs.to_vec()),
     };
 
     let started_at = current_timestamp();
-    // Truncate previous log file and record running operation status
-    let _ = std::fs::write(LOG_FILE, "");
-    append_to_log_file(&format!("[COCKPIT-AUR] {op_description}"));
     write_operation_status(
         "running",
         op_name,
         op_target,
+        &op_packages,
         Some(child.id()),
         started_at,
         None,
         None,
     );
 
-    let stdout = child.stdout.take().context("Failed to open child stdout")?;
-    let stderr = child.stderr.take().context("Failed to open child stderr")?;
+    let is_finished = Arc::new(AtomicBool::new(false));
+    let is_finished_clone = Arc::clone(&is_finished);
 
-    let stdout_handle = std::thread::spawn(move || {
+    let tail_handle = std::thread::spawn(move || {
         use std::io::Read;
-        let mut reader = stdout;
-        let mut buf = [0u8; 1024];
-        let mut line_buf = Vec::new();
-        let mut last_line = String::new();
-
-        while let Ok(n) = reader.read(&mut buf) {
-            if n == 0 {
-                break;
+        let start_wait = Instant::now();
+        let file = loop {
+            if let Ok(f) = std::fs::File::open(LOG_FILE) {
+                break Some(f);
             }
-            for &b in &buf[..n] {
-                if b == b'\n' || b == b'\r' {
-                    if !line_buf.is_empty() {
-                        let s = String::from_utf8_lossy(&line_buf).trim().to_string();
-                        line_buf.clear();
-                        if !s.is_empty() && s != last_line {
-                            last_line = s.clone();
-                            let formatted = format!("[AUR] {s}");
-                            append_to_log_file(&formatted);
-                            emit_event(&StreamEvent::Log {
-                                level: "info".to_string(),
-                                message: formatted,
-                            });
+            if is_finished_clone.load(AtomicOrdering::SeqCst) || start_wait.elapsed() > Duration::from_secs(5) {
+                break None;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        };
+
+        let Some(file) = file else { return };
+        let mut reader = std::io::BufReader::new(file);
+        let mut last_line = String::new();
+        let mut byte_buf = [0u8; 1024];
+        let mut line_buf = Vec::new();
+
+        loop {
+            match reader.read(&mut byte_buf) {
+                Ok(0) => {
+                    if is_finished_clone.load(AtomicOrdering::SeqCst) {
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+                Ok(n) => {
+                    for &b in &byte_buf[..n] {
+                        if b == b'\n' || b == b'\r' {
+                            if !line_buf.is_empty() {
+                                let s = String::from_utf8_lossy(&line_buf).trim().to_string();
+                                line_buf.clear();
+                                if !s.is_empty() && s != last_line {
+                                    last_line = s.clone();
+                                    emit_event(&StreamEvent::Log {
+                                        level: "info".to_string(),
+                                        message: format!("[AUR] {s}"),
+                                    });
+                                }
+                            }
+                        } else {
+                            line_buf.push(b);
                         }
                     }
-                } else {
-                    line_buf.push(b);
                 }
+                Err(_) => break,
             }
         }
         if !line_buf.is_empty() {
             let s = String::from_utf8_lossy(&line_buf).trim().to_string();
             if !s.is_empty() && s != last_line {
-                let formatted = format!("[AUR] {s}");
-                append_to_log_file(&formatted);
                 emit_event(&StreamEvent::Log {
                     level: "info".to_string(),
-                    message: formatted,
-                });
-            }
-        }
-    });
-
-    let stderr_handle = std::thread::spawn(move || {
-        use std::io::Read;
-        let mut reader = stderr;
-        let mut buf = [0u8; 1024];
-        let mut line_buf = Vec::new();
-        let mut last_line = String::new();
-
-        while let Ok(n) = reader.read(&mut buf) {
-            if n == 0 {
-                break;
-            }
-            for &b in &buf[..n] {
-                if b == b'\n' || b == b'\r' {
-                    if !line_buf.is_empty() {
-                        let s = String::from_utf8_lossy(&line_buf).trim().to_string();
-                        line_buf.clear();
-                        if !s.is_empty() && s != last_line {
-                            last_line = s.clone();
-                            let formatted = format!("[AUR] {s}");
-                            append_to_log_file(&formatted);
-                            emit_event(&StreamEvent::Log {
-                                level: "warn".to_string(),
-                                message: formatted,
-                            });
-                        }
-                    }
-                } else {
-                    line_buf.push(b);
-                }
-            }
-        }
-        if !line_buf.is_empty() {
-            let s = String::from_utf8_lossy(&line_buf).trim().to_string();
-            if !s.is_empty() && s != last_line {
-                let formatted = format!("[AUR] {s}");
-                append_to_log_file(&formatted);
-                emit_event(&StreamEvent::Log {
-                    level: "warn".to_string(),
-                    message: formatted,
+                    message: format!("[AUR] {s}"),
                 });
             }
         }
@@ -387,19 +412,22 @@ pub fn run_aur_operation(
         // Stdin closing (e.g. session lock, tab disconnect) does NOT kill the ongoing upgrade!
         if is_explicit_cancel() {
             let _ = child.kill();
+            let _ = std::process::Command::new("pkill").args(["-TERM", "-x", "makepkg"]).status();
+            let _ = std::process::Command::new("pkill").args(["-TERM", "-x", "yay"]).status();
+            is_finished.store(true, AtomicOrdering::SeqCst);
+            let _ = child.wait();
+            let _ = tail_handle.join();
             emit_event(&StreamEvent::Complete {
                 success: false,
                 message: Some("Operation cancelled by user".to_string()),
                 code: Some("cancelled".to_string()),
                 details: None,
             });
-            let _ = child.wait();
-            let _ = stdout_handle.join();
-            let _ = stderr_handle.join();
             write_operation_status(
                 "cancelled",
                 op_name,
                 op_target,
+                &op_packages,
                 Some(child.id()),
                 started_at,
                 Some(-1),
@@ -410,23 +438,26 @@ pub fn run_aur_operation(
 
         if start_time.elapsed() > timeout_duration {
             let _ = child.kill();
+            let _ = std::process::Command::new("pkill").args(["-TERM", "-x", "makepkg"]).status();
+            let _ = std::process::Command::new("pkill").args(["-TERM", "-x", "yay"]).status();
+            is_finished.store(true, AtomicOrdering::SeqCst);
             let err_msg = format!(
                 "Operation timed out after {} seconds",
                 timeout_duration.as_secs()
             );
+            let _ = child.wait();
+            let _ = tail_handle.join();
             emit_event(&StreamEvent::Complete {
                 success: false,
                 message: Some(err_msg.clone()),
                 code: Some("timeout".to_string()),
                 details: None,
             });
-            let _ = child.wait();
-            let _ = stdout_handle.join();
-            let _ = stderr_handle.join();
             write_operation_status(
                 "failed",
                 op_name,
                 op_target,
+                &op_packages,
                 Some(child.id()),
                 started_at,
                 Some(-1),
@@ -437,10 +468,16 @@ pub fn run_aur_operation(
 
         match child.try_wait() {
             Ok(Some(status)) => {
-                let _ = stdout_handle.join();
-                let _ = stderr_handle.join();
+                is_finished.store(true, AtomicOrdering::SeqCst);
+                let _ = tail_handle.join();
 
-                if status.success() {
+                // Check exit code from EXIT_CODE_FILE first, falling back to process status code
+                let exit_code = std::fs::read_to_string(EXIT_CODE_FILE)
+                    .ok()
+                    .and_then(|s| s.trim().parse::<i32>().ok())
+                    .unwrap_or_else(|| status.code().unwrap_or(-1));
+
+                if exit_code == 0 {
                     emit_event(&StreamEvent::Complete {
                         success: true,
                         message: Some("AUR operation completed successfully".to_string()),
@@ -451,6 +488,7 @@ pub fn run_aur_operation(
                         "completed",
                         op_name,
                         op_target,
+                        &op_packages,
                         Some(child.id()),
                         started_at,
                         Some(0),
@@ -458,7 +496,6 @@ pub fn run_aur_operation(
                     );
                     return Ok(());
                 } else {
-                    let exit_code = status.code().unwrap_or(-1);
                     let err_msg = format!("AUR operation failed with exit code {exit_code}");
                     emit_event(&StreamEvent::Complete {
                         success: false,
@@ -470,31 +507,37 @@ pub fn run_aur_operation(
                         "failed",
                         op_name,
                         op_target,
+                        &op_packages,
                         Some(child.id()),
                         started_at,
                         Some(exit_code),
                         Some(&err_msg),
                     );
-                    return Err(anyhow!(err_msg));
+                    return Err(anyhow!("{err_msg}"));
                 }
             }
-            Ok(None) => {
-                std::thread::sleep(Duration::from_millis(100));
-            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(500)),
             Err(e) => {
-                let _ = child.kill();
-                let _ = stdout_handle.join();
-                let _ = stderr_handle.join();
+                is_finished.store(true, AtomicOrdering::SeqCst);
+                let _ = tail_handle.join();
+                let err_msg = format!("Error waiting on AUR operation: {e}");
+                emit_event(&StreamEvent::Complete {
+                    success: false,
+                    message: Some(err_msg.clone()),
+                    code: Some("failed".to_string()),
+                    details: None,
+                });
                 write_operation_status(
                     "failed",
                     op_name,
                     op_target,
+                    &op_packages,
                     Some(child.id()),
                     started_at,
                     Some(-1),
-                    Some(&e.to_string()),
+                    Some(&err_msg),
                 );
-                return Err(e).context("Error waiting for child process");
+                return Err(anyhow!("{err_msg}"));
             }
         }
     }

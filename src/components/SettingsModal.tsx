@@ -70,9 +70,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         if (settings.security_advisories !== null && settings.security_advisories !== undefined) {
           setSecurityAdvisories(settings.security_advisories);
         }
-        if (settings.aur_cache_ttl_secs) setCacheTtl(settings.aur_cache_ttl_secs);
-        if (settings.aur_upgrade_timeout_secs) setUpgradeTimeout(settings.aur_upgrade_timeout_secs);
-        if (settings.aur_rpc_timeout_secs) setRpcTimeout(settings.aur_rpc_timeout_secs);
+        if (settings.aur_cache_ttl_secs) setCacheTtl(Number(settings.aur_cache_ttl_secs));
+        if (settings.aur_upgrade_timeout_secs) setUpgradeTimeout(Number(settings.aur_upgrade_timeout_secs));
+        if (settings.aur_rpc_timeout_secs) setRpcTimeout(Number(settings.aur_rpc_timeout_secs));
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : String(err));
