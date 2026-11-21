@@ -27,6 +27,7 @@ REMOTE_PLEX="gf@192.168.1.188"
 # Parse arguments
 TARGET="local"
 SKIP_BUILD=0
+NO_BUMP=0
 
 for arg in "$@"; do
     case "$arg" in
@@ -42,35 +43,52 @@ for arg in "$@"; do
         --skip-build)
             SKIP_BUILD=1
             ;;
+        --no-bump)
+            NO_BUMP=1
+            ;;
         -h|--help)
-            echo "Usage: $0 [vampa|plex|all] [--skip-build]"
+            echo "Usage: $0 [vampa|plex|all] [--skip-build] [--no-bump]"
             exit 0
             ;;
         *)
             echo "Unknown option: $arg"
-            echo "Usage: $0 [vampa|plex|all] [--skip-build]"
+            echo "Usage: $0 [vampa|plex|all] [--skip-build] [--no-bump]"
             exit 1
             ;;
     esac
 done
 
-# Determine package file dynamically from makepkg and PKGBUILD (no hardcoded pkgrel or arch)
-PKG_FILE_PATH="$(makepkg --packagelist | head -n 1)"
-PKG_FILE="$(basename "$PKG_FILE_PATH")"
-
-# Read version from package.json or PKGBUILD
+# Read upstream version from package.json
 VERSION=$(node -p "require('./package.json').version")
 
-echo -e "\033[1;36m============================================================\033[0m"
-echo -e "\033[1;36m🚀 COCKPIT-AUR DEPLOYMENT PIPELINE (v${VERSION})\033[0m"
-echo -e "\033[1;36mTarget: ${TARGET} | Package: ${PKG_FILE}\033[0m"
-echo -e "\033[1;36m============================================================\033[0m"
-
 # 1. Build Package
-if [ "$SKIP_BUILD" -eq 1 ] && [ -f "$PKG_FILE" ]; then
-    echo -e "\n\033[1;33m[1/3] Skipping build, using existing package: $PKG_FILE\033[0m"
+if [ "$SKIP_BUILD" -eq 1 ]; then
+    PKG_FILE_PATH="$(makepkg --packagelist | head -n 1)"
+    PKG_FILE="$(basename "$PKG_FILE_PATH")"
+    if [ -f "$PKG_FILE" ]; then
+        echo -e "\n\033[1;33m[1/3] Skipping build, using existing package: $PKG_FILE\033[0m"
+    fi
 else
-    echo -e "\n\033[1;34m[1/3] Building clean Arch Linux package via makepkg...\033[0m"
+    # Auto-bump patch/package release version (pkgrel) on each deployment build
+    CURRENT_PKGREL=$(grep '^pkgrel=' PKGBUILD | cut -d'=' -f2 | tr -d ' ')
+    if [ "$NO_BUMP" -eq 0 ]; then
+        NEW_PKGREL=$((CURRENT_PKGREL + 1))
+        sed -i "s/^pkgrel=.*/pkgrel=${NEW_PKGREL}/" PKGBUILD
+        echo -e "\033[1;35m📌 Bumped package patch release: pkgrel ${CURRENT_PKGREL} -> ${NEW_PKGREL}\033[0m"
+    else
+        NEW_PKGREL="$CURRENT_PKGREL"
+    fi
+
+    # Determine fresh package file name dynamically
+    PKG_FILE_PATH="$(makepkg --packagelist | head -n 1)"
+    PKG_FILE="$(basename "$PKG_FILE_PATH")"
+
+    echo -e "\033[1;36m============================================================\033[0m"
+    echo -e "\033[1;36m🚀 COCKPIT-AUR DEPLOYMENT PIPELINE (v${VERSION}-${NEW_PKGREL})\033[0m"
+    echo -e "\033[1;36mTarget: ${TARGET} | Package: ${PKG_FILE}\033[0m"
+    echo -e "\033[1;36m============================================================\033[0m"
+
+    echo -e "\n\033[1;34m[1/3] Building clean Arch Linux package via makepkg (${PKG_FILE})...\033[0m"
     # Ensure frontend and backend are fresh
     (cd backend && cargo build --release --locked)
     npm run build
