@@ -70,6 +70,7 @@ pub struct Options {
     pub max_body: usize,
     pub max_headers: usize,
     pub max_redirects: u32,
+    pub user_agent: Option<String>,
 }
 
 impl Default for Options {
@@ -82,6 +83,7 @@ impl Default for Options {
             max_body: 8 * 1024 * 1024,
             max_headers: 128 * 1024,
             max_redirects: 5,
+            user_agent: Some("pacman/7.0.0 (x86_64) cockpit-aur/0.5.3".to_string()),
         }
     }
 }
@@ -268,6 +270,8 @@ fn request(
     }
     restrict_protocols(handle)?;
     handle.url(url.as_str())?;
+    let ua = options.user_agent.as_deref().unwrap_or("pacman/7.0.0 (x86_64) cockpit-aur/0.5.3");
+    handle.useragent(ua)?;
     handle.signal(false)?;
     handle.timeout(options.timeout)?;
     handle.connect_timeout(options.connect_timeout)?;

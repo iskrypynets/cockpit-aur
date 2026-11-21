@@ -288,6 +288,12 @@ pub unsafe fn initialize(command: &str) {
     if !matches!(
         command,
         "sync-database"
+            | "check-updates"
+            | "aur-search"
+            | "aur-info"
+            | "aur-pkgbuild"
+            | "aur-install"
+            | "aur-upgrade"
             | "upgrade"
             | "install-package"
             | "preflight-downgrade-archive"
@@ -312,7 +318,11 @@ pub unsafe fn initialize(command: &str) {
     }
     // main calls this before creating any threads.
     unsafe {
-        initialize_from(Path::new("/etc/cockpit-pacman"), 0);
+        if Path::new("/etc/cockpit-aur").exists() {
+            initialize_from(Path::new("/etc/cockpit-aur"), 0);
+        } else {
+            initialize_from(Path::new("/etc/cockpit-pacman"), 0);
+        }
     }
 }
 

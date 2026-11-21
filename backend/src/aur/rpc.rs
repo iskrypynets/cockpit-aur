@@ -13,6 +13,7 @@ fn aur_http_client() -> arch_http_client::Client {
         timeout: Duration::from_secs(20),
         connect_timeout: Duration::from_secs(10),
         max_body: MAX_AUR_RPC_BYTES,
+        user_agent: Some("pacman/7.0.0 (x86_64) cockpit-aur/0.5.3".to_string()),
         ..arch_http_client::Options::default()
     })
 }
@@ -47,15 +48,21 @@ pub fn info_aur(names: &[&str]) -> Result<Vec<AurRpcPackage>> {
     }
 
     crate::network::require_network()?;
-    for name in names {
-        crate::validation::validate_package_name(name)?;
+    let valid_names: Vec<&str> = names
+        .iter()
+        .copied()
+        .filter(|name| crate::validation::validate_package_name(name).is_ok())
+        .collect();
+
+    if valid_names.is_empty() {
+        return Ok(Vec::new());
     }
 
     let client = aur_http_client();
     let mut all_results = Vec::new();
 
-    // Batch in chunks of 100 packages to keep URL query strings safely under limits
-    for chunk in names.chunks(100) {
+    // Batch in chunks of 50 packages to keep URL query strings safely under limits
+    for chunk in valid_names.chunks(50) {
         let mut query_params = Vec::new();
         for name in chunk {
             let encoded = utf8_percent_encode(name, NON_ALPHANUMERIC).to_string();
@@ -68,8 +75,13 @@ pub fn info_aur(names: &[&str]) -> Result<Vec<AurRpcPackage>> {
             .get(&url)
             .with_context(|| "Failed to query AUR RPC info")?;
 
-        let rpc_res: AurRpcResponse = serde_json::from_slice(&response.body)
-            .with_context(|| "Failed to parse AUR RPC info response")?;
+        let rpc_res: AurRpcResponse = match serde_json::from_slice(&response.body) {
+            Ok(res) => res,
+            Err(e) => {
+                let body_str = String::from_utf8_lossy(&response.body);
+                bail!("Failed to parse AUR RPC info response: {e}; body preview: {}", &body_str[..body_str.len().min(300)]);
+            }
+        };
 
         if let Some(err) = rpc_res.error {
             bail!("AUR RPC error: {err}");

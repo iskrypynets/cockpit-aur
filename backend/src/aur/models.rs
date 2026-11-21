@@ -38,12 +38,15 @@ pub struct AurRpcPackage {
 /// Raw envelope from AUR RPC v5
 #[derive(Debug, Deserialize)]
 pub struct AurRpcResponse {
-    pub version: u32,
-    #[serde(rename = "type")]
-    pub response_type: String,
+    #[serde(default)]
+    pub version: Option<u32>,
+    #[serde(rename = "type", default)]
+    pub response_type: Option<String>,
+    #[serde(default)]
     pub resultcount: usize,
     #[serde(default)]
     pub results: Vec<AurRpcPackage>,
+    #[serde(default)]
     pub error: Option<String>,
 }
 

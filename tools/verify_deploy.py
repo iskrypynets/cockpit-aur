@@ -179,10 +179,29 @@ def verify(target_name: str, remote: str | None, expected_ver: str) -> bool:
     )
     check("Cockpit terminal enhancements (Copy, Settings toggle, Scrollback)", code == 0)
 
+    # 13. Check backend check-updates responds with updates JSON (including AUR)
+    code, stdout, stderr = run_target_cmd("/usr/libexec/cockpit-aur/cockpit-aur-backend check-updates", remote)
+    check_updates_ok = False
+    detail = ""
+    if code == 0:
+        try:
+            data = json.loads(stdout)
+            updates_list = data.get("updates", [])
+            warnings_list = data.get("warnings", [])
+            has_aur_warn = any("AUR" in w for w in warnings_list)
+            check_updates_ok = isinstance(updates_list, list) and not has_aur_warn
+            aur_count = sum(1 for u in updates_list if u.get("repository") == "aur")
+            detail = f"total={len(updates_list)}, aur={aur_count}, warnings={len(warnings_list)}"
+        except Exception:
+            detail = f"invalid json: {stdout[:100]}"
+    else:
+        detail = f"exit {code}: {stderr[:100]}"
+    check("Backend check-updates executes successfully without AUR warnings", check_updates_ok, detail)
+
     # Summary
     print("-" * 60)
     if not failures:
-        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {12} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
+        print(f"{Colors.GREEN}{Colors.BOLD}🎉 ALL {13} DEPLOYMENT CHECKS PASSED FOR [{target_name}]!{Colors.RESET}\n")
         return True
     else:
         print(f"{Colors.RED}{Colors.BOLD}❌ DEPLOYMENT VERIFICATION FAILED FOR [{target_name}] ({len(failures)} failures):{Colors.RESET}")
