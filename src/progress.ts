@@ -179,9 +179,10 @@ export function reduceAurProgress(
   }
 
   if (total <= 0) total = 1;
+  const activeIndex = current > 0 ? current : 1;
   const completed = Math.max(0, current > 0 ? current - 1 : 0);
-  const remaining = Math.max(0, total - completed);
-  const percent = Math.min(99, Math.round((completed / total) * 100));
+  const remaining = Math.max(1, total - completed);
+  const percent = Math.min(99, Math.round(((activeIndex - 0.5) / total) * 100));
 
   const stepLabel = current > 0
     ? `Package ${current} of ${total} (${remaining} remaining)`
@@ -190,7 +191,7 @@ export function reduceAurProgress(
   return {
     ...state,
     phase: "aur",
-    phaseLabel: `Upgrading AUR packages (${completed} of ${total})`,
+    phaseLabel: `Upgrading AUR packages (${activeIndex} of ${total})`,
     stepLabel,
     item: currentItem,
     value: raise(state.value, percent),

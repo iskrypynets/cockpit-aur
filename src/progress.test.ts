@@ -153,28 +153,28 @@ describe("reduceAurProgress", () => {
     let state: ProgressState = {
       ...initialProgress,
       phase: "aur",
-      phaseLabel: "Upgrading AUR packages (0 of 3)",
+      phaseLabel: "Upgrading AUR packages (1 of 3)",
       stepLabel: "3 packages queued (3 remaining)",
       value: 0,
     };
 
     state = reduceAurProgress(state, "==> Making package: ruby 3.4.13-1", 3, pkgs);
     expect(state.phase).toBe("aur");
-    expect(state.phaseLabel).toBe("Upgrading AUR packages (0 of 3)");
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (1 of 3)");
     expect(state.stepLabel).toBe("Package 1 of 3 (3 remaining)");
     expect(state.item).toBe("ruby");
-    expect(state.value).toBe(0);
+    expect(state.value).toBe(17);
 
     state = reduceAurProgress(state, "==> Making package: ruby-bundled-gems 3.4.13-1", 3, pkgs);
-    expect(state.phaseLabel).toBe("Upgrading AUR packages (1 of 3)");
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (2 of 3)");
     expect(state.stepLabel).toBe("Package 2 of 3 (2 remaining)");
     expect(state.item).toBe("ruby-bundled-gems");
-    expect(state.value).toBe(33);
+    expect(state.value).toBe(50);
 
     state = reduceAurProgress(state, "(3/3) upgrading ruby-stdlib", 3, pkgs);
-    expect(state.phaseLabel).toBe("Upgrading AUR packages (2 of 3)");
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (3 of 3)");
     expect(state.stepLabel).toBe("Package 3 of 3 (1 remaining)");
     expect(state.item).toBe("ruby-stdlib");
-    expect(state.value).toBe(67);
+    expect(state.value).toBe(83);
   });
 });

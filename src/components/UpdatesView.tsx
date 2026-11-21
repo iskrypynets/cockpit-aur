@@ -1456,7 +1456,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
       setUpgradeProgress({
         value: 0,
         phase: "aur",
-        phaseLabel: totalAur > 0 ? `Upgrading AUR packages (0 of ${totalAur})` : "Upgrading AUR packages",
+        phaseLabel: totalAur > 0 ? `Upgrading AUR packages (1 of ${totalAur})` : "Upgrading AUR packages",
         stepLabel: totalAur > 0 ? `Package 1 of ${totalAur} (${totalAur} remaining)` : "Preparing AUR helper",
         item: resolvedAurPackages[0] ?? "",
         stage: "transaction",
