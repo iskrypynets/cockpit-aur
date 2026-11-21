@@ -12,43 +12,267 @@ interface LogViewerProps {
 
 const FOLLOW_THRESHOLD_PX = 24;
 
+const ANSI_PATTERN = /\x1b\[([0-9;]*)m/g;
+
+export interface StyledSpan {
+  text: string;
+  color?: string;
+  bold?: boolean;
+  dim?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+}
+
+const ANSI_FG_COLORS: Record<number, string> = {
+  30: "#1e293b", // black
+  31: "#f87171", // red
+  32: "#4ade80", // green
+  33: "#fbbf24", // yellow
+  34: "#60a5fa", // blue
+  35: "#c084fc", // magenta
+  36: "#38bdf8", // cyan
+  37: "#f1f5f9", // white
+  90: "#94a3b8", // bright black / gray
+  91: "#fca5a5", // bright red
+  92: "#86efac", // bright green
+  93: "#fde047", // bright yellow
+  94: "#93c5fd", // bright blue
+  95: "#e879f9", // bright magenta
+  96: "#67e8f9", // bright cyan
+  97: "#ffffff", // bright white
+};
+
+export function parseAnsiSpans(line: string): StyledSpan[] {
+  const spans: StyledSpan[] = [];
+  let currentColor: string | undefined;
+  let isBold = false;
+  let isDim = false;
+  let isItalic = false;
+  let isUnderline = false;
+
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(ANSI_PATTERN);
+
+  while ((match = regex.exec(line)) !== null) {
+    if (match.index > lastIndex) {
+      const text = line.slice(lastIndex, match.index);
+      if (text) {
+        spans.push({
+          text,
+          color: currentColor,
+          bold: isBold,
+          dim: isDim,
+          italic: isItalic,
+          underline: isUnderline,
+        });
+      }
+    }
+
+    const codeStr = match[1];
+    if (!codeStr || codeStr === "0") {
+      currentColor = undefined;
+      isBold = false;
+      isDim = false;
+      isItalic = false;
+      isUnderline = false;
+    } else {
+      const codes = codeStr.split(";").map((c) => parseInt(c, 10));
+      for (const code of codes) {
+        if (code === 0) {
+          currentColor = undefined;
+          isBold = false;
+          isDim = false;
+          isItalic = false;
+          isUnderline = false;
+        } else if (code === 1) {
+          isBold = true;
+        } else if (code === 2) {
+          isDim = true;
+        } else if (code === 3) {
+          isItalic = true;
+        } else if (code === 4) {
+          isUnderline = true;
+        } else if (code === 22) {
+          isBold = false;
+          isDim = false;
+        } else if (code === 23) {
+          isItalic = false;
+        } else if (code === 24) {
+          isUnderline = false;
+        } else if (code === 39) {
+          currentColor = undefined;
+        } else if (ANSI_FG_COLORS[code]) {
+          currentColor = ANSI_FG_COLORS[code];
+        }
+      }
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < line.length) {
+    const text = line.slice(lastIndex);
+    if (text) {
+      spans.push({
+        text,
+        color: currentColor,
+        bold: isBold,
+        dim: isDim,
+        italic: isItalic,
+        underline: isUnderline,
+      });
+    }
+  }
+
+  return spans;
+}
+
+function renderSemanticLineText(text: string): React.ReactNode {
+  // Error patterns:
+  if (
+    /(?:==>\s+ERROR:|->\s+error|error:|failed:|undefined reference to|collect2:\s+error:|make\[\d+\]:\s+\*\*\*.*Error \d+)/i.test(
+      text
+    )
+  ) {
+    return (
+      <span style={{ color: "var(--pf-t--global--color--status--danger--default, #f87171)", fontWeight: 600 }}>
+        {text}
+      </span>
+    );
+  }
+
+  // Warning patterns:
+  if (/(?:==>\s+WARNING:|warning:|\[warn(?:ing)?\])/i.test(text)) {
+    return (
+      <span style={{ color: "var(--pf-t--global--color--status--warning--default, #fbbf24)", fontWeight: 600 }}>
+        {text}
+      </span>
+    );
+  }
+
+  // AUR / Makepkg step: ==>
+  if (/^\s*==>/.test(text)) {
+    const arrowMatch = text.match(/^(\s*==>)\s*(.*)$/);
+    if (arrowMatch) {
+      return (
+        <span>
+          <span style={{ color: "#38bdf8", fontWeight: 700 }}>{arrowMatch[1]} </span>
+          <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{arrowMatch[2]}</span>
+        </span>
+      );
+    }
+  }
+
+  // Substep: ->
+  if (/^\s*->/.test(text)) {
+    const arrowMatch = text.match(/^(\s*->)\s*(.*)$/);
+    if (arrowMatch) {
+      return (
+        <span>
+          <span style={{ color: "#60a5fa", fontWeight: 700 }}>{arrowMatch[1]} </span>
+          <span style={{ color: "#cbd5e1" }}>{arrowMatch[2]}</span>
+        </span>
+      );
+    }
+  }
+
+  // Header: ::
+  if (/^\s*::/.test(text)) {
+    const headerMatch = text.match(/^(\s*::)\s*(.*)$/);
+    if (headerMatch) {
+      return (
+        <span>
+          <span style={{ color: "#c084fc", fontWeight: 700 }}>{headerMatch[1]} </span>
+          <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{headerMatch[2]}</span>
+        </span>
+      );
+    }
+  }
+
+  // Passed / Skipped / Failed validation lines (e.g. "kgamma-6.7.5.tar.xz ... Passed")
+  if (/\s+\.\.\.\s+(Passed|Skipped|Failed)$/i.test(text)) {
+    const vMatch = text.match(/^(.*?\s+\.\.\.\s+)(Passed|Skipped|Failed)$/i);
+    if (vMatch) {
+      const status = vMatch[2];
+      const statusColor =
+        status.toLowerCase() === "passed"
+          ? "#4ade80"
+          : status.toLowerCase() === "failed"
+          ? "#f87171"
+          : "#94a3b8";
+      return (
+        <span>
+          <span style={{ color: "#e2e8f0" }}>{vMatch[1]}</span>
+          <span style={{ color: statusColor, fontWeight: 700 }}>{status}</span>
+        </span>
+      );
+    }
+  }
+
+  // Compilation progress: [ 82%] Building CXX object ...
+  if (/^\s*\[\s*\d+%\s*\]/.test(text)) {
+    const pMatch = text.match(/^(\s*\[\s*\d+%\s*\])\s*(.*)$/);
+    if (pMatch) {
+      return (
+        <span>
+          <span style={{ color: "#38bdf8", fontWeight: 700 }}>{pMatch[1]} </span>
+          <span style={{ color: "#94a3b8" }}>{pMatch[2]}</span>
+        </span>
+      );
+    }
+  }
+
+  // General success milestones:
+  if (
+    /(?:installed|upgraded|reinstalled|transaction completed|completed successfully|finished)/i.test(
+      text
+    )
+  ) {
+    return (
+      <span style={{ color: "var(--pf-t--global--color--status--success--default, #4ade80)", fontWeight: 500 }}>
+        {text}
+      </span>
+    );
+  }
+
+  // Compiler chatter (CC, CXX, CCLD, make):
+  if (/^\s*(?:CC|CXX|CCLD|AR|GEN|LD)\s+/i.test(text) || /^\s*make\[\d+\]:/.test(text)) {
+    return <span style={{ color: "#64748b" }}>{text}</span>;
+  }
+
+  return <span style={{ color: "#e2e8f0" }}>{text}</span>;
+}
+
 export function renderLogLine(line: string, index: number): React.ReactNode {
   if (!line) {
     return <div key={index} style={{ minHeight: "1.25em" }}>&nbsp;</div>;
   }
 
-  // Parse: optional timestamp, initiator tag [INITIATOR], and message
+  // If the line contains ANSI escape codes, render with exact ANSI styles
+  if (line.includes("\x1b[")) {
+    const spans = parseAnsiSpans(line);
+    return (
+      <div key={index} style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
+        {spans.map((span, sIdx) => (
+          <span
+            key={sIdx}
+            style={{
+              color: span.color ?? "#e2e8f0",
+              fontWeight: span.bold ? 700 : undefined,
+              opacity: span.dim ? 0.7 : undefined,
+              fontStyle: span.italic ? "italic" : undefined,
+              textDecoration: span.underline ? "underline" : undefined,
+            }}
+          >
+            {span.text}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  // Check for timestamp and initiator tag [TAG]
   const match = line.match(/^(\[\d{4}-\d{2}-\d{2}T[^\]]+\]\s+)?(\[[A-Za-z0-9_\-]+\])\s*(.*)$/);
-
-  let messageColor = "#e2e8f0";
-  let fontWeight: string | number = "normal";
-
-  // Error patterns: error:, failed:
-  if (/(?:error|failed):/i.test(line)) {
-    messageColor = "var(--pf-t--global--color--status--danger--default, #f87171)";
-    fontWeight = 600;
-  }
-  // Warning patterns: warning:, [warn]
-  else if (/(?:warning|\[warn(?:ing)?\]):?/i.test(line)) {
-    messageColor = "var(--pf-t--global--color--status--warning--default, #fbbf24)";
-  }
-  // Success / install milestone patterns:
-  else if (
-    /(?:installed|upgraded|reinstalled|transaction completed|completed successfully|==>\s+finished)/i.test(line)
-  ) {
-    messageColor = "var(--pf-t--global--color--status--success--default, #4ade80)";
-    fontWeight = 500;
-  }
-  // AUR helper steps: ==> or ->
-  else if (/^\s*(?:==>|->)/.test(line) || (match && /^\s*(?:==>|->)/.test(match[3]))) {
-    messageColor = "#38bdf8";
-    fontWeight = 500;
-  }
-  // ALPM hook executions or running steps:
-  else if (/(?:running|transaction started)/i.test(line)) {
-    messageColor = "#94a3b8";
-  }
-
   if (match) {
     const [, timestamp, initiator, msg] = match;
     let initiatorColor = "#60a5fa";
@@ -69,14 +293,14 @@ export function renderLogLine(line: string, index: number): React.ReactNode {
       <div key={index} style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
         {timestamp && <span style={{ color: "#64748b", marginRight: "0.5rem" }}>{timestamp.trim()}</span>}
         <span style={{ color: initiatorColor, fontWeight: 700, marginRight: "0.5rem" }}>{initiator}</span>
-        <span style={{ color: messageColor, fontWeight }}>{msg}</span>
+        {renderSemanticLineText(msg)}
       </div>
     );
   }
 
   return (
-    <div key={index} style={{ color: messageColor, fontWeight, whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
-      {line}
+    <div key={index} style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
+      {renderSemanticLineText(line)}
     </div>
   );
 }

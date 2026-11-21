@@ -22,15 +22,14 @@ import {
   AngleUpIcon,
   ArrowUpIcon,
   CheckCircleIcon,
-  CheckIcon,
   CodeIcon,
-  CopyIcon,
   ExclamationCircleIcon,
   PlusIcon,
 } from "@patternfly/react-icons";
 import { AurHistoryEntry, getAurHistoryLog } from "../api";
 import { TimeAgo } from "./TimeAgo";
 import { formatDuration } from "./ScheduleModal";
+import { LogViewer } from "./LogViewer";
 
 export interface AurHistoryCardProps {
   entries: AurHistoryEntry[];
@@ -48,7 +47,6 @@ export const AurHistoryCard: React.FC<AurHistoryCardProps> = ({
   const [activeLog, setActiveLog] = useState<string | null>(null);
   const [logLoading, setLogLoading] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredEntries = normalizedQuery
@@ -66,7 +64,6 @@ export const AurHistoryCard: React.FC<AurHistoryCardProps> = ({
     setSelectedEntry(entry);
     setActiveLog(null);
     setLogError(null);
-    setCopied(false);
     setLogLoading(true);
     try {
       const res = await getAurHistoryLog(entry.id);
@@ -76,14 +73,6 @@ export const AurHistoryCard: React.FC<AurHistoryCardProps> = ({
     } finally {
       setLogLoading(false);
     }
-  };
-
-  const handleCopyLog = () => {
-    if (!activeLog) return;
-    navigator.clipboard.writeText(activeLog).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
   };
 
   const handleCloseModal = () => {
@@ -271,33 +260,13 @@ export const AurHistoryCard: React.FC<AurHistoryCardProps> = ({
                 Failed to load build log: {logError}
               </div>
             ) : (
-              <pre
-                style={{
-                  maxHeight: "65vh",
-                  overflowY: "auto",
-                  backgroundColor: "#151515",
-                  color: "#d4d4d4",
-                  padding: "1rem",
-                  borderRadius: "4px",
-                  fontSize: "0.85rem",
-                  fontFamily: "var(--pf-t--global--font--family--mono, monospace)",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-all",
-                }}
-              >
-                {activeLog}
-              </pre>
+              <LogViewer
+                log={activeLog ?? ""}
+                aria-label={`AUR Build Log: ${selectedEntry.packages.join(", ") || selectedEntry.operation}`}
+              />
             )}
           </ModalBody>
           <ModalFooter>
-            <Button
-              variant="secondary"
-              icon={copied ? <CheckIcon /> : <CopyIcon />}
-              onClick={handleCopyLog}
-              isDisabled={!activeLog || logLoading}
-            >
-              {copied ? "Copied" : "Copy log"}
-            </Button>
             <Button variant="link" onClick={handleCloseModal}>
               Close
             </Button>

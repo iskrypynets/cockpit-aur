@@ -160,4 +160,27 @@ describe("LogViewer", () => {
       text: "shareable log",
     });
   });
+
+  it("renders ANSI colored and styled spans", () => {
+    const ansiLog = "\x1b[1;31mFatal compilation error\x1b[0m\n\x1b[32mSuccess milestone\x1b[0m";
+    render(<LogViewer log={ansiLog} />);
+    const errorSpan = screen.getByText("Fatal compilation error");
+    expect(errorSpan).toBeInTheDocument();
+    expect(errorSpan.style.color).toBe("rgb(248, 113, 113)");
+    expect(errorSpan.style.fontWeight).toBe("700");
+
+    const successSpan = screen.getByText("Success milestone");
+    expect(successSpan).toBeInTheDocument();
+    expect(successSpan.style.color).toBe("rgb(74, 222, 128)");
+  });
+
+  it("colorizes semantic AUR and makepkg log lines", () => {
+    const aurLog = ":: Searching AUR for updates...\n==> Making package: mypkg\n==> ERROR: check() failed\n==> WARNING: unverified signature\narchive.tar.gz ... Passed";
+    render(<LogViewer log={aurLog} />);
+    expect(screen.getByText("::")).toBeInTheDocument();
+    expect(screen.getByText("==>")).toBeInTheDocument();
+    expect(screen.getByText("==> ERROR: check() failed")).toBeInTheDocument();
+    expect(screen.getByText("==> WARNING: unverified signature")).toBeInTheDocument();
+    expect(screen.getByText("Passed")).toBeInTheDocument();
+  });
 });
