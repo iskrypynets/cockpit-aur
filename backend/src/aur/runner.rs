@@ -111,21 +111,28 @@ pub fn run_aur_operation(
                 "-S",
                 pkg,
                 "--noconfirm",
-                "--nodiffmenu",
-                "--noeditmenu",
-                "--nocleanmenu",
-                "--nouseask",
+                "--answerclean",
+                "None",
+                "--answerdiff",
+                "None",
+                "--answeredit",
+                "None",
+                "--answerupgrade",
+                "None",
             ]);
         }
         ("yay", AurOperation::Upgrade) => {
             cmd.args([
-                "-Su",
-                "--aur",
+                "-Sua",
                 "--noconfirm",
-                "--nodiffmenu",
-                "--noeditmenu",
-                "--nocleanmenu",
-                "--nouseask",
+                "--answerclean",
+                "None",
+                "--answerdiff",
+                "None",
+                "--answeredit",
+                "None",
+                "--answerupgrade",
+                "None",
             ]);
         }
         ("paru", AurOperation::Install(pkg)) => {
