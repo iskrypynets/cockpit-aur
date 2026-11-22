@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-patch_overview.py - Patch Cockpit's overview.js.gz to render ANSI colored MOTD via React dangerouslySetInnerHTML
+patch_overview.py - Patch Cockpit's overview.js.gz, index.html, manifest.json, and branding.css
+to render ANSI colored MOTD via React dangerouslySetInnerHTML and direct client-side fallback.
 """
 
 import gzip
+import json
 import os
 import shutil
 import subprocess
@@ -12,6 +14,8 @@ import tempfile
 
 OVERVIEW_GZ = "/usr/share/cockpit/systemd/overview.js.gz"
 ORIG_GZ = "/usr/share/cockpit/systemd/overview.js.gz.orig"
+MANIFEST_JSON = "/usr/share/cockpit/systemd/manifest.json"
+BRANDING_CSS = "/usr/share/cockpit/branding/arch/branding.css"
 
 TARGET = 'title:de.default.createElement("pre",{id:"motd"},e)'
 
@@ -108,6 +112,49 @@ def patch_overview():
     os.chmod(tmp_gz_name, 0o644)
     shutil.move(tmp_gz_name, OVERVIEW_GZ)
     print(f"Successfully patched {OVERVIEW_GZ} with native React ANSI colorizer!")
+
+    # 4. Bump version in manifest.json to evict Cockpit shell frame cache
+    if os.path.exists(MANIFEST_JSON):
+        try:
+            with open(MANIFEST_JSON, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+            manifest["version"] = "265.1"
+            with open(MANIFEST_JSON, "w", encoding="utf-8") as f:
+                json.dump(manifest, f, indent=4)
+            print(f"Updated {MANIFEST_JSON} version to 265.1")
+        except Exception as ex:
+            print(f"Warning: Could not update {MANIFEST_JSON}: {ex}")
+
+    # 5. Append dark MOTD style to branding.css if not already present
+    if os.path.exists(BRANDING_CSS):
+        try:
+            with open(BRANDING_CSS, "r", encoding="utf-8") as f:
+                b_css = f.read()
+            if "#motd" not in b_css:
+                motd_css = (
+                    "\n/* Cockpit MOTD Terminal Dark Styling */\n"
+                    "#motd {\n"
+                    "    background: #0a0e17 !important;\n"
+                    "    color: #f8fafc !important;\n"
+                    "    padding: 16px 20px !important;\n"
+                    "    border-radius: 8px !important;\n"
+                    "    border: 1px solid #1e293b !important;\n"
+                    "    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;\n"
+                    "    font-family: var(--pf-t--global--font--family--monospace, monospace) !important;\n"
+                    "    font-size: 13px !important;\n"
+                    "    line-height: 1.3 !important;\n"
+                    "    overflow-x: auto !important;\n"
+                    "}\n"
+                    "#motd span {\n"
+                    "    display: inline !important;\n"
+                    "}\n"
+                )
+                with open(BRANDING_CSS, "a", encoding="utf-8") as f:
+                    f.write(motd_css)
+                print(f"Appended #motd styles to {BRANDING_CSS}")
+        except Exception as ex:
+            print(f"Warning: Could not update {BRANDING_CSS}: {ex}")
+
     return True
 
 if __name__ == "__main__":
