@@ -101,9 +101,9 @@ echo -e "
  /#.--   --.#\\
 /'           '\\ $W> $G$HOSTNAME $W
 $G--------------------------------------------------------------------$W
-$B        KERNEL $G:$W $KERNEL $Y$ARCH$W
-$B    CPU VENDOR $G:$W $CPU_VENDOR
-$B           CPU $G:$W $CPU
+$B        KERNEL $G:$Y $KERNEL $ARCH$W
+$B    CPU VENDOR $G:$Y $CPU_VENDOR$W
+$B           CPU $G:$Y $CPU$W
 $B         CORES $G:$Y $CORES$W
 $B     BOOT TYPE $G:$Y $BOOT_TYPE$W
 $B    IP ADDRESS $G:$Y ${IP_ADDRESSES[*]}$W
@@ -115,6 +115,6 @@ $B        UPTIME $G:$Y $upDays days $upHours hours $upMins minutes $upSecs secon
 $B      LOAD AVG $G:$Y $LOAD1 $W| $Y$LOAD5 $W| $Y$LOAD15$W
 $B  USERS ACTIVE $G:$Y $USERS_COUNT users logged in$W
 $B           NTP $G:$SYNC_COLOR active ($SYNC_TEXT)$W
-$B   SYSTEM TIME $G:$W $LOCAL_TIME $Y$TIME_ZONE$W
+$B   SYSTEM TIME $G:$Y $LOCAL_TIME $TIME_ZONE$W
 $G--------------------------------------------------------------------$W
 $N" > "$motd"
