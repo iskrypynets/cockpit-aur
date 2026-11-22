@@ -131,7 +131,7 @@ pub fn list_installed(
 }
 
 pub fn check_updates() -> Result<()> {
-    let handle = get_handle()?;
+    let handle = crate::alpm::get_check_handle().or_else(|_| get_handle())?;
     let (config, degraded) = crate::config::AppConfig::load_degraded()?;
     let mut updates = find_available_updates(&handle, &config.ignored_packages);
 
@@ -149,7 +149,7 @@ pub fn check_updates() -> Result<()> {
             }
         }
     }
-    let sync_dir = crate::handlers::lock::db_lock_path().with_file_name("sync");
+    let sync_dir = std::path::Path::new(handle.dbpath()).join("sync");
     let response = UpdatesResponse {
         updates,
         warnings,

@@ -32,6 +32,58 @@ pub fn get_handle() -> Result<Alpm> {
     Ok(handle)
 }
 
+/// Returns an ALPM handle for checking available updates safely.
+///
+/// To safely query remote mirrors without altering the host's `/var/lib/pacman/sync/`
+/// or risking partial upgrades (and allowing unprivileged users in Cockpit to check updates),
+/// this initializes an isolated check database directory (matching the standard Arch `checkupdates`
+/// convention: `${CHECKUPDATES_DB:-${TMPDIR:-/tmp}/checkup-db-${UID}/}`) with a symlink to the
+/// system's local installed database (`local -> /var/lib/pacman/local`).
+/// When online, it refreshes the mirror databases into this directory using conditional GET (`update(false)`).
+pub fn get_check_handle() -> Result<Alpm> {
+    let conf = Config::new().context("Failed to parse pacman.conf")?;
+    let uid = unsafe { libc::getuid() };
+
+    let check_db = std::env::var_os("CHECKUPDATES_DB")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::env::temp_dir().join(format!("checkup-db-{}", uid)));
+
+    let mut check_conf = conf.clone();
+    let mut using_check_db = false;
+
+    if std::fs::create_dir_all(&check_db).is_ok() {
+        let local_symlink = check_db.join("local");
+        let sys_local = std::path::Path::new(&conf.db_path).join("local");
+        if !local_symlink.exists() && sys_local.exists() {
+            let _ = std::os::unix::fs::symlink(&sys_local, &local_symlink);
+        }
+        if local_symlink.exists() {
+            check_conf.db_path = check_db.display().to_string();
+            using_check_db = true;
+        }
+    }
+
+    let mut handle = alpm_with_conf(&check_conf).context("Failed to initialize check alpm handle")?;
+    handle
+        .add_hookdir("/usr/share/libalpm/hooks/")
+        .context("Failed to add system hookdir")?;
+
+    if using_check_db && crate::network::require_network().is_ok() {
+        let _ = handle.syncdbs_mut().update(false);
+    }
+
+    // If the check databases have no packages (e.g. freshly created offline), fall back to system databases.
+    if using_check_db && handle.syncdbs().iter().all(|db| db.pkgs().is_empty()) {
+        if let Ok(sys_handle) = get_handle() {
+            if !sys_handle.syncdbs().iter().all(|db| db.pkgs().is_empty()) {
+                return Ok(sys_handle);
+            }
+        }
+    }
+
+    Ok(handle)
+}
+
 pub fn sync_databases(handle: &mut Alpm, force: bool) -> Result<()> {
     crate::network::require_network()?;
     let result = handle.syncdbs_mut().update(force);

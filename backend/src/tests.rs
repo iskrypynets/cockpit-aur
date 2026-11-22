@@ -1075,6 +1075,16 @@ mod integration {
     }
 
     #[test]
+    fn test_get_check_handle_succeeds() {
+        let handle = crate::alpm::get_check_handle();
+        assert!(
+            handle.is_ok(),
+            "Failed to get check ALPM handle: {:?}",
+            handle.err()
+        );
+    }
+
+    #[test]
     fn test_localdb_has_packages() {
         let handle = get_handle().expect("Failed to get handle");
         let localdb = handle.localdb();

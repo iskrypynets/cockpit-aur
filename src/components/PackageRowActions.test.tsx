@@ -73,7 +73,7 @@ const itemNames = (menu: HTMLElement) =>
 
 const item = (menu: HTMLElement, name: string) => within(menu).getByRole("menuitem", { name });
 
-const installed = { installedVersion: "9.1-1", repository: "extra", syncVersion: "9.1-1", ignored: false };
+const installed = { installedVersion: "9.1-1", repository: "extra", syncVersion: "9.1-1", ignored: false, reason: "explicit" };
 const localVim = { name: "vim", version: "9.1-1", repository: "extra", reason: "explicit", required_by: [], optional_for: [] } as unknown as api.PackageDetails;
 
 const INSTALLED_VERBS = [

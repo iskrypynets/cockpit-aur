@@ -1,6 +1,6 @@
 [package]
 name = "cockpit-aur-backend"
-version = "0.5.4"
+version = "0.5.5"
 authors = ["gf <green_forest@ukr.net>"]
 repository = "https://github.com/iskrypynets/cockpit-aur"
 edition = "2024"

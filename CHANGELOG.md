@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.5] - 2026-11-22
+
+### Fixed
+- **Accurate Official Repository Update Detection (`check-updates`)**:
+  - Implemented safe, isolated mirror synchronization for update checking (`get_check_handle()`) using an isolated check database directory (`${CHECKUPDATES_DB:-/tmp/checkup-db-${UID}/}`) matching the standard Arch Linux `checkupdates` convention.
+  - Automatically fetches the latest mirror databases over HTTP via non-forced conditional GET (`handle.syncdbs_mut().update(false)`), without requiring root privileges and without altering `/var/lib/pacman/sync/` (eliminating partial upgrade hazards).
+  - Resolves the bug where `check-updates` only compared installed packages against stale local sync databases on disk (often resulting in 0 repo updates even when 90+ updates were pending on remote mirrors).
+  - Falls back gracefully to system databases if offline or if isolated check database cannot be created.
+- **Test Suite**:
+  - Added unit test for `get_check_handle()` in backend.
+  - Stabilized `installReason` in `PackageRowActions.test.tsx`.
+
 ## [0.5.4] - 2026-11-22
 
 ### Added
