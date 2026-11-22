@@ -4,8 +4,6 @@ import { render, cleanup, act, fireEvent } from "@testing-library/react";
 import { computeFitTransform, computeKeepInView, seedPositions, transitionDuration, useForceGraph, type ForceGraphResult } from "./useForceGraph";
 import type { DependencyNode, DependencyEdge } from "../api";
 
-/* global SVGSVGElement */
-
 describe("computeFitTransform", () => {
   const width = 800;
   const height = 600;

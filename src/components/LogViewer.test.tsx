@@ -142,10 +142,10 @@ describe("LogViewer", () => {
   });
 
   it("shares log via navigator.share when available", async () => {
-    let sharedPayload: any = null;
+    let sharedPayload: { title?: string; text?: string } | null = null;
     Object.defineProperty(navigator, "share", {
       configurable: true,
-      value: async (payload: any) => {
+      value: async (payload: { title?: string; text?: string }) => {
         sharedPayload = payload;
       },
     });

@@ -272,7 +272,7 @@ export function renderLogLine(line: string, index: number): React.ReactNode {
   }
 
   // Check for timestamp and initiator tag [TAG]
-  const match = line.match(/^(\[\d{4}-\d{2}-\d{2}T[^\]]+\]\s+)?(\[[A-Za-z0-9_\-]+\])\s*(.*)$/);
+  const match = line.match(/^(\[\d{4}-\d{2}-\d{2}T[^\]]+\]\s+)?(\[[A-Za-z0-9_-]+\])\s*(.*)$/);
   if (match) {
     const [, timestamp, initiator, msg] = match;
     let initiatorColor = "#60a5fa";
@@ -390,8 +390,8 @@ export const LogViewer: React.FC<LogViewerProps> = ({
         title: `${ariaLabel || "Cockpit AUR Log"}`,
         text: log,
       });
-    } catch (e: any) {
-      if (e?.name !== "AbortError") {
+    } catch (e: unknown) {
+      if ((e as { name?: string })?.name !== "AbortError") {
         copyLog();
       }
     }

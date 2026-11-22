@@ -71,7 +71,7 @@ fn aur_http_client() -> arch_http_client::Client {
         timeout: rpc_timeout,
         connect_timeout,
         max_body: MAX_AUR_RPC_BYTES,
-        user_agent: Some("pacman/7.0.0 (x86_64) cockpit-aur/0.5.3".to_string()),
+        user_agent: Some(concat!("pacman/7.0.0 (x86_64) cockpit-aur/", env!("CARGO_PKG_VERSION")).to_string()),
         ..arch_http_client::Options::default()
     })
 }

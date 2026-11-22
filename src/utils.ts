@@ -23,7 +23,6 @@ export function sanitizeSearchInput(input: string): string {
 
 export function sanitizeErrorMessage(message: string | null | undefined): string {
   if (!message) return "An unknown error occurred";
-  // eslint-disable-next-line no-control-regex
   const cleaned = message.replace(/[\x00-\x1F\x7F]/g, " ").trim();
   if (cleaned.length > MAX_ERROR_LENGTH) {
     return cleaned.slice(0, MAX_ERROR_LENGTH) + "...";

@@ -83,7 +83,7 @@ impl Default for Options {
             max_body: 8 * 1024 * 1024,
             max_headers: 128 * 1024,
             max_redirects: 5,
-            user_agent: Some("pacman/7.0.0 (x86_64) cockpit-aur/0.5.3".to_string()),
+            user_agent: Some(concat!("pacman/7.0.0 (x86_64) cockpit-aur/", env!("CARGO_PKG_VERSION")).to_string()),
         }
     }
 }
@@ -270,7 +270,7 @@ fn request(
     }
     restrict_protocols(handle)?;
     handle.url(url.as_str())?;
-    let ua = options.user_agent.as_deref().unwrap_or("pacman/7.0.0 (x86_64) cockpit-aur/0.5.3");
+    let ua = options.user_agent.as_deref().unwrap_or(concat!("pacman/7.0.0 (x86_64) cockpit-aur/", env!("CARGO_PKG_VERSION")));
     handle.useragent(ua)?;
     handle.signal(false)?;
     handle.timeout(options.timeout)?;

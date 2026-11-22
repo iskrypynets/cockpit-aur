@@ -326,6 +326,7 @@ describe("PackageRowActions", () => {
       });
       expect(screen.queryByText("vim is now ignored during upgrades")).not.toBeInTheDocument();
     } finally {
+      vi.clearAllTimers();
       vi.useRealTimers();
     }
   });
@@ -371,8 +372,11 @@ describe("PackageRowActions", () => {
     renderActions(installed);
     const menu = await openMenu();
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Remove vim" }));
-    expect(await screen.findByRole("dialog", { name: "Remove vim" })).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Remove vim" });
+    expect(dialog).toBeInTheDocument();
     expect(mockPreviewRemove).toHaveBeenCalledWith("vim");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await vi.waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
   describe("focus after the row leaves the list", () => {

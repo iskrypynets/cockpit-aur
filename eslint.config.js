@@ -3,6 +3,7 @@ import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
+import globals from "globals";
 
 export default [
   eslint.configs.recommended,
@@ -18,29 +19,8 @@ export default [
         },
       },
       globals: {
-        console: "readonly",
-        document: "readonly",
-        window: "readonly",
-        setTimeout: "readonly",
-        clearTimeout: "readonly",
-        Promise: "readonly",
+        ...globals.browser,
         cockpit: "readonly",
-        MutationObserver: "readonly",
-        ResizeObserver: "readonly",
-        MouseEvent: "readonly",
-        Event: "readonly",
-        HTMLDivElement: "readonly",
-        HTMLElement: "readonly",
-        HTMLInputElement: "readonly",
-        Element: "readonly",
-        URL: "readonly",
-        AbortController: "readonly",
-        AbortSignal: "readonly",
-        TextEncoder: "readonly",
-        TextDecoder: "readonly",
-        Uint8Array: "readonly",
-        atob: "readonly",
-        btoa: "readonly",
       },
     },
     plugins: {
@@ -59,6 +39,7 @@ export default [
         { argsIgnorePattern: "^_" },
       ],
       "no-unused-vars": "off",
+      "no-control-regex": "off",
     },
     settings: {
       react: {
@@ -75,12 +56,8 @@ export default [
         sourceType: "module",
       },
       globals: {
-        console: "readonly",
-        process: "readonly",
-        document: "readonly",
-        HTMLInputElement: "readonly",
-        HTMLButtonElement: "readonly",
-        Event: "readonly",
+        ...globals.browser,
+        ...globals.node,
       },
     },
     plugins: {

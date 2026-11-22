@@ -151,7 +151,7 @@ describe("RepositoriesView", () => {
       expect(screen.getByText("[core]")).toBeInTheDocument();
     });
     const coreEl = screen.getByText("[core]");
-    expect(coreEl).toHaveStyle({ fontFamily: "var(--pf-t--global--font--family--mono)" });
+    expect(coreEl.style.fontFamily).toBe("var(--pf-t--global--font--family--mono)");
   });
 
   it("offers SigLevel help as a named button", async () => {
@@ -1105,7 +1105,7 @@ describe("RepositoriesView", () => {
       await act(async () => {
         fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
       });
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(mockDeleteRepoBackup).not.toHaveBeenCalled();
     });
   });
@@ -1783,7 +1783,7 @@ describe("RepositoriesView", () => {
       const dialog = screen.getByRole("dialog", { name: /Remove \[chaotic-aur\]/ });
       expect(dialog).toHaveTextContent("[chaotic-aur] is disabled, so pacman tracks no installed packages to it.");
       fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(mockSaveRepos).not.toHaveBeenCalled();
     });
 

@@ -9,8 +9,6 @@ import { zoom, zoomIdentity, zoomTransform, type ZoomBehavior, type ZoomTransfor
 import { drag } from "d3-drag";
 import { DependencyNode, DependencyEdge } from "../api";
 
-/* global SVGSVGElement, SVGGElement, SVGCircleElement */
-
 export interface ForceGraphNode extends SimulationNodeDatum {
   id: string;
   name: string;

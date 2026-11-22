@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.5.4] - 2026-11-22
+
+### Added
+- **Resilient Background AUR Operations**:
+  - `systemd-run --user --scope` execution for AUR helpers (`yay`, `paru`), ensuring builds continue uninterrupted across session drops or browser closes.
+  - SIGPIPE immunity and persistent disk-backed state tracking (`/run/user/<uid>/cockpit-aur-run.json`) with exit code recording.
+  - Seamless frontend reconnection and live log resumption upon page reload or network recovery.
+- **Enhanced Mobile Terminal Experience**:
+  - Touch-friendly scrollbar slider in Cockpit Tools Terminal (`terminal.html`).
+  - Collapsible floating action button (FAB) toggle for terminal settings, keeping the screen unobstructed on mobile viewports.
+  - 1000-line scrollback buffer and persistent viewport position tracking.
+- **Automated Deployment Pipeline & Verification**:
+  - Integrated `./deploy.sh` script with automated multi-node deployment (`vampa`, `plex`, `all`).
+  - Comprehensive 16-point deployment self-test suite (`tools/verify_deploy.py`) checking file permissions, user scopes, pacman lock hygiene, and backend IPC health.
+  - Clean plain-text MOTD banner generator (`tools/generate_motd.sh`) with pure monochrome ASCII rendering.
+
+### Changed
+- Reverted all experimental Cockpit core monkey-patches byte-for-byte to pristine upstream Arch Linux packages.
+- Dynamic runtime user-agent string using Rust `CARGO_PKG_VERSION` in `arch-http-client` and AUR RPC.
+
+### Fixed
+- Fixed ESLint configuration and React 19 hook anti-patterns across `HistoryView`, `SettingsModal`, `LogViewer`, and graph hooks (0 errors, 0 warnings).
+- Resolved focus restoration timing and dialog animation race conditions in `rowFocus`, `PackageRowActions`, `RepositoriesView`, and `MirrorsView` tests.
+- Re-synced full test suite: 2,167/2,167 frontend tests passing, 705/705 backend tests passing.
+
 ## [0.5.3] - 2026-11-20
 
 ### Added

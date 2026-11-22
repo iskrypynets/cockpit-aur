@@ -59,16 +59,8 @@ export function focusRow(memo: RowMemo): boolean {
 }
 
 const afterPaint = (fn: () => void): (() => void) => {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  if (typeof window.requestAnimationFrame !== "function") {
-    timer = setTimeout(fn, 0);
-    return () => clearTimeout(timer);
-  }
-  const frame = window.requestAnimationFrame(() => { timer = setTimeout(fn, 0); });
-  return () => {
-    window.cancelAnimationFrame(frame);
-    clearTimeout(timer);
-  };
+  const timer = setTimeout(fn, 0);
+  return () => clearTimeout(timer);
 };
 
 /** Restores lost focus after a row disappears; returns a cancel function. */

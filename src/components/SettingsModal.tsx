@@ -61,12 +61,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
   useEffect(() => {
     if (!isOpen) return;
-    setLoading(true);
-    setError(null);
-    setCacheClearMsg(null);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      setCacheClearMsg(null);
+    });
 
     getSettings()
       .then((settings: SettingsResponse) => {
+        if (cancelled) return;
         if (settings.security_advisories !== null && settings.security_advisories !== undefined) {
           setSecurityAdvisories(settings.security_advisories);
         }
@@ -75,9 +80,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         if (settings.aur_rpc_timeout_secs) setRpcTimeout(Number(settings.aur_rpc_timeout_secs));
       })
       .catch((err) => {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : String(err));
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   const handleSave = async () => {

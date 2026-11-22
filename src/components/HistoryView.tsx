@@ -314,16 +314,18 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
     getScheduledRuns().then((response) => setScheduledRuns(response.runs), () => {});
   }, []);
 
-  const loadAurHistory = useCallback(async () => {
-    setAurHistoryLoading(true);
-    try {
-      const response = await getAurHistory();
-      setAurHistory(response.entries);
-    } catch {
-      // Ignore background error
-    } finally {
-      setAurHistoryLoading(false);
-    }
+  const loadAurHistory = useCallback(() => {
+    queueMicrotask(() => setAurHistoryLoading(true));
+    return getAurHistory()
+      .then((response) => {
+        setAurHistory(response.entries);
+      })
+      .catch(() => {
+        // Ignore background error
+      })
+      .finally(() => {
+        setAurHistoryLoading(false);
+      });
   }, []);
 
   const activeDetailsRow = !detailsTarget ? null : detailsRow ?? (() => {
@@ -410,7 +412,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
       setState("error");
       setError(toLoadFailure(ex));
     }
-  }, [offset, perPage, filter, searchQuery, until, viewMode, fetchHistory, applyResponse, stopRefreshing, loadScheduledRuns]);
+  }, [offset, perPage, filter, searchQuery, until, viewMode, fetchHistory, applyResponse, stopRefreshing, loadScheduledRuns, loadAurHistory]);
 
   // Auto-load on input/mode change. setState stays inside .then/.catch (the
   // set-state-in-effect lint rejects it factored through a helper).
@@ -439,7 +441,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
         setError(toLoadFailure(ex));
       });
     return () => { cancelled = true; loadAbortRef.current?.abort(); };
-  }, [offset, perPage, filter, searchQuery, until, viewMode, fetchHistory, applyResponse, stopRefreshing, loadScheduledRuns]);
+  }, [offset, perPage, filter, searchQuery, until, viewMode, fetchHistory, applyResponse, stopRefreshing, loadScheduledRuns, loadAurHistory]);
 
   const refreshHistory = useCallback(async () => {
     const seq = ++loadSeqRef.current;
@@ -499,7 +501,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ routeOptions, onRouteC
         setError(toLoadFailure(ex));
       }
     }
-  }, [offset, perPage, filter, searchQuery, until, viewMode, fetchHistory, setPage, stopRefreshing, loadScheduledRuns, announce]);
+  }, [offset, perPage, filter, searchQuery, until, viewMode, fetchHistory, setPage, stopRefreshing, loadScheduledRuns, loadAurHistory, announce]);
 
   useEffect(() => {
     refreshHistoryRef.current = refreshHistory;

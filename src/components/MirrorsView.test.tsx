@@ -625,7 +625,7 @@ describe("MirrorsView", () => {
 
       expect(mockSaveMirrorlist).toHaveBeenCalledWith(rankedResponse.mirrors, "rev-1");
       expect(await screen.findByRole("heading", { name: /Saved \/etc\/pacman.d\/mirrorlist/ })).toBeInTheDocument();
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(screen.getByRole("grid", { name: "Mirror list" })).toHaveTextContent(/ranked1\.example\.org/);
       expect(screen.getByRole("button", { name: /Save Changes/i })).toHaveAttribute("aria-disabled", "true");
 

@@ -1087,7 +1087,7 @@ function runStreamingBackend(
           }
           const trimmed = event.message.trim();
           let lineText: string;
-          if (/^\[[A-Za-z0-9_\-]+\]/.test(trimmed)) {
+          if (/^\[[A-Za-z0-9_-]+\]/.test(trimmed)) {
             lineText = `${trimmed}\n`;
           } else {
             const initiator = "ALPM";
@@ -1129,7 +1129,7 @@ function runStreamingBackend(
         }
       } catch {
         const trimmed = line.trim();
-        if (/^\[[A-Za-z0-9_\-]+\]/.test(trimmed)) {
+        if (/^\[[A-Za-z0-9_-]+\]/.test(trimmed)) {
           callbacks.onData?.(`${trimmed}\n`);
         } else if (/^\s*(?:==>|->)/.test(trimmed)) {
           callbacks.onData?.(`[AUR] ${trimmed}\n`);
@@ -1157,7 +1157,7 @@ function runStreamingBackend(
         }
       } catch {
         const trimmed = buffer.trim();
-        if (/^\[[A-Za-z0-9_\-]+\]/.test(trimmed)) {
+        if (/^\[[A-Za-z0-9_-]+\]/.test(trimmed)) {
           callbacks.onData?.(`${trimmed}\n`);
         } else if (/^\s*(?:==>|->)/.test(trimmed)) {
           callbacks.onData?.(`[AUR] ${trimmed}\n`);

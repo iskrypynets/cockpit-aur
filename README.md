@@ -84,6 +84,23 @@ make devel-install
 
 ---
 
+### Automated Deployment & Multi-Node Testing
+
+For building native packages, deploying, and running automated health checks across nodes:
+
+```bash
+# Deploy to local machine (vampa)
+./deploy.sh vampa
+
+# Deploy to remote server (plex)
+./deploy.sh plex
+
+# Deploy to all configured nodes and execute 16-point self-test verification
+./deploy.sh all
+```
+
+---
+
 ## Remote & Mobile Tips
 
 - **Session Idle Timeouts**: To prevent Cockpit from frequently dropping sessions when switching mobile apps or locking the screen, set `IdleTimeout=0` in `/etc/cockpit/cockpit.conf` and adjust sudo timeout in `/etc/sudoers.d/`. See [docs/troubleshooting.md](docs/troubleshooting.md) for complete details.

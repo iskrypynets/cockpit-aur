@@ -730,7 +730,7 @@ describe("PackageDetailsModal", () => {
       fireEvent.click(screen.getByRole("button", { name: "Open Keyring" }));
     });
     expect(calls).toEqual(["keyring"]);
-    expect(screen.queryAllByRole("dialog")).toHaveLength(0);
+    await waitFor(() => expect(screen.queryAllByRole("dialog")).toHaveLength(0));
   });
 
   it("a finished downgrade returns to re-read details with a notice", async () => {
