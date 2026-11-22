@@ -220,13 +220,16 @@ def verify(target_name: str, remote: str | None, expected_ver: str) -> bool:
     status_ok = code == 0 and "status" in stdout
     check("Backend aur-operation-status reports valid status JSON", status_ok)
 
-    # 16. Check Cockpit Overview MOTD colorizer enhancement
+    # 16. Check system MOTD generator and pristine Cockpit systemd core
     code, stdout, stderr = run_target_cmd(
-        "python3 -c 'import gzip; c = gzip.open(\"/usr/share/cockpit/systemd/overview.js.gz\", \"rt\", errors=\"ignore\").read(); assert \"dangerouslySetInnerHTML\" in c and \"motd\" in c' && "
-        "grep -q '#motd' /usr/share/cockpit/systemd/index.html",
+        "test -x /opt/arch-motd/generate_motd.sh && "
+        "test -s /etc/motd && "
+        "! grep -q $'\\033' /etc/motd && "
+        "test ! -f /usr/share/cockpit/systemd/overview.js.gz.orig && "
+        "python3 -c 'import gzip; c = gzip.open(\"/usr/share/cockpit/systemd/overview.js.gz\", \"rt\", errors=\"ignore\").read(); assert \"title:de.default.createElement(\\\"pre\\\",{id:\\\"motd\\\"},e)\" in c'",
         remote,
     )
-    check("Cockpit overview MOTD native React ANSI colorizer", code == 0)
+    check("Clean plain-text MOTD & pristine Cockpit systemd core", code == 0)
 
     # Summary
     print("-" * 60)

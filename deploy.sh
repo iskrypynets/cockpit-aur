@@ -215,16 +215,22 @@ deploy_local() {
         sudo chmod 644 /usr/share/cockpit/systemd/terminal.html
     fi
 
-    # Install overview MOTD ANSI colorizer
-    if [ -f "tools/overview-index.html" ]; then
-        sudo cp -f tools/overview-index.html /usr/share/cockpit/systemd/index.html
-        sudo chmod 644 /usr/share/cockpit/systemd/index.html
+    # Ensure Cockpit systemd core files are in pristine official state
+    if [ -f "/usr/share/cockpit/systemd/overview.js.gz.orig" ]; then
+        sudo cp -f "/usr/share/cockpit/systemd/overview.js.gz.orig" "/usr/share/cockpit/systemd/overview.js.gz"
+        sudo rm -f "/usr/share/cockpit/systemd/overview.js.gz.orig"
     fi
-    if [ -f "tools/patch_overview.py" ]; then
-        sudo python3 tools/patch_overview.py
+    local cockpit_pkg
+    cockpit_pkg="$(ls -1 /var/cache/pacman/pkg/cockpit-[0-9]*.pkg.tar.zst 2>/dev/null | sort -V | tail -n 1 || true)"
+    if [ -n "$cockpit_pkg" ] && [ -f "$cockpit_pkg" ]; then
+        tar -xOf "$cockpit_pkg" usr/share/cockpit/systemd/overview.js.gz 2>/dev/null | sudo tee /usr/share/cockpit/systemd/overview.js.gz >/dev/null || true
+        tar -xOf "$cockpit_pkg" usr/share/cockpit/systemd/index.html 2>/dev/null | sudo tee /usr/share/cockpit/systemd/index.html >/dev/null || true
+        tar -xOf "$cockpit_pkg" usr/share/cockpit/systemd/manifest.json 2>/dev/null | sudo tee /usr/share/cockpit/systemd/manifest.json >/dev/null || true
+        tar -xOf "$cockpit_pkg" usr/share/cockpit/branding/arch/branding.css 2>/dev/null | sudo tee /usr/share/cockpit/branding/arch/branding.css >/dev/null || true
+        sudo chmod 644 /usr/share/cockpit/systemd/overview.js.gz /usr/share/cockpit/systemd/index.html /usr/share/cockpit/systemd/manifest.json /usr/share/cockpit/branding/arch/branding.css 2>/dev/null || true
     fi
 
-    # Install vibrant MOTD generator
+    # Install clean plain-text MOTD generator
     if [ -f "tools/generate_motd.sh" ]; then
         sudo mkdir -p /opt/arch-motd
         sudo cp -f tools/generate_motd.sh /opt/arch-motd/generate_motd.sh
@@ -246,11 +252,11 @@ deploy_plex() {
     wait_for_safe_deploy "remote"
 
     echo -e "\n\033[1;34m[2/3] Installing package on REMOTE host (plex: $REMOTE_PLEX)...\033[0m"
-    # Transfer package, terminal.html, overview-index.html, patch_overview.py, and generate_motd.sh to /tmp
-    echo "Transferring $PKG_FILE, terminal.html, overview-index.html, patch_overview.py, and generate_motd.sh to $REMOTE_PLEX:/tmp/..."
-    scp -o BatchMode=yes "$PKG_FILE" tools/terminal.html tools/overview-index.html tools/patch_overview.py tools/generate_motd.sh "${REMOTE_PLEX}:/tmp/"
+    # Transfer package, terminal.html, and generate_motd.sh to /tmp
+    echo "Transferring $PKG_FILE, terminal.html, and generate_motd.sh to $REMOTE_PLEX:/tmp/..."
+    scp -o BatchMode=yes "$PKG_FILE" tools/terminal.html tools/generate_motd.sh "${REMOTE_PLEX}:/tmp/"
 
-    # Install on remote, remove user overrides, install terminal & overview enhancements, restart service
+    # Install on remote, remove user overrides, restore pristine core, install terminal & motd generator, restart service
     echo "Installing package on remote via pacman -U and configuring enhancements..."
     ssh -o BatchMode=yes "$REMOTE_PLEX" bash -s <<EOF
 set -e
@@ -265,14 +271,18 @@ if [ -f "/tmp/terminal.html" ]; then
     sudo chmod 644 /usr/share/cockpit/systemd/terminal.html
     rm -f /tmp/terminal.html
 fi
-if [ -f "/tmp/overview-index.html" ]; then
-    sudo cp -f /tmp/overview-index.html /usr/share/cockpit/systemd/index.html
-    sudo chmod 644 /usr/share/cockpit/systemd/index.html
-    rm -f /tmp/overview-index.html
+# Restore pristine Cockpit core files on remote
+if [ -f "/usr/share/cockpit/systemd/overview.js.gz.orig" ]; then
+    sudo cp -f "/usr/share/cockpit/systemd/overview.js.gz.orig" "/usr/share/cockpit/systemd/overview.js.gz"
+    sudo rm -f "/usr/share/cockpit/systemd/overview.js.gz.orig"
 fi
-if [ -f "/tmp/patch_overview.py" ]; then
-    sudo python3 /tmp/patch_overview.py
-    rm -f /tmp/patch_overview.py
+cockpit_pkg="\$(ls -1 /var/cache/pacman/pkg/cockpit-[0-9]*.pkg.tar.zst 2>/dev/null | sort -V | tail -n 1 || true)"
+if [ -n "\$cockpit_pkg" ] && [ -f "\$cockpit_pkg" ]; then
+    tar -xOf "\$cockpit_pkg" usr/share/cockpit/systemd/overview.js.gz 2>/dev/null | sudo tee /usr/share/cockpit/systemd/overview.js.gz >/dev/null || true
+    tar -xOf "\$cockpit_pkg" usr/share/cockpit/systemd/index.html 2>/dev/null | sudo tee /usr/share/cockpit/systemd/index.html >/dev/null || true
+    tar -xOf "\$cockpit_pkg" usr/share/cockpit/systemd/manifest.json 2>/dev/null | sudo tee /usr/share/cockpit/systemd/manifest.json >/dev/null || true
+    tar -xOf "\$cockpit_pkg" usr/share/cockpit/branding/arch/branding.css 2>/dev/null | sudo tee /usr/share/cockpit/branding/arch/branding.css >/dev/null || true
+    sudo chmod 644 /usr/share/cockpit/systemd/overview.js.gz /usr/share/cockpit/systemd/index.html /usr/share/cockpit/systemd/manifest.json /usr/share/cockpit/branding/arch/branding.css 2>/dev/null || true
 fi
 if [ -f "/tmp/generate_motd.sh" ]; then
     sudo mkdir -p /opt/arch-motd

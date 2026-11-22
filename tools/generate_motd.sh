@@ -1,21 +1,11 @@
 #!/bin/bash
 # ==============================================================================
-# generate_motd.sh - Modern, vibrant Arch Linux MOTD generator
+# generate_motd.sh - Clean plain-text Arch Linux MOTD generator (no ANSI codes)
 # ==============================================================================
 
 export LC_ALL=C
 export LANG=C
 
-# Colour CONSTANTS
-W="\033[0m"
-B="\033[01;36m"
-R="\033[01;31m"
-G="\033[01;32m"
-Y="\033[01;33m"
-M="\033[01;35m"
-N="\033[0m"
-
-# Define output file
 motd="/etc/motd"
 
 # Collect information
@@ -28,7 +18,6 @@ ARCH=$(uname -m)
 MEMORY1=$(free -m | awk '/Mem:/{print $3" MB"}')
 MEMORY2=$(free -m | awk '/Mem:/{print $2" MB"}')
 MEMPERCENT=$(free | awk '/Mem:/{printf("%.1f%% (Used)"), $3/$2*100}')
-BOOT_TYPE=""
 
 SYSTEM_STATUS=$(systemctl is-system-running 2>/dev/null || true)
 if [ -z "$SYSTEM_STATUS" ]; then
@@ -51,10 +40,8 @@ TIME_SYNC_STATUS=$(timedatectl status 2>/dev/null | grep "clock synchronized" | 
 
 if [ "$TIME_SYNC_STATUS" = "yes" ]; then
   SYNC_TEXT="Synchronised"
-  SYNC_COLOR="$G"
 else
   SYNC_TEXT="NOT Synchronised"
-  SYNC_COLOR="$R"
 fi
 
 if [ -d /sys/firmware/efi ]; then
@@ -75,46 +62,34 @@ LOAD1=$(cat /proc/loadavg | awk '{print $1}')
 LOAD5=$(cat /proc/loadavg | awk '{print $2}')
 LOAD15=$(cat /proc/loadavg | awk '{print $3}')
 
-# Status colors
-if [ "$SYSTEM_STATUS" = "running" ]; then
-  STATUS_COLOR="$G"
-else
-  STATUS_COLOR="$R"
-fi
-
-if [ "$FAILED_SERVICES" -eq 0 ]; then
-  FAILED_COLOR="$G"
-else
-  FAILED_COLOR="$R"
-fi
-
 USERS_COUNT=$(users 2>/dev/null | wc -w || echo 0)
 
-# Write motd
-echo -e "
-       $B. $W
-      $B/#\\                    _      _ _
+# Write clean plain-text motd without ANSI codes
+cat <<EOF > "$motd"
+
+       . 
+      /#\\                    _      _ _
      /###\\      __ _ _ __ ___| |__  | (_)_ __  _   ___  __
     /#####\\    / _' | '__/ __| '_ \\ | | | '_ \\| | | \\ \\/ /
    /##.-.##\\  | (_| | | | (__| | | || | | | | | |_| |>  <
   /##(   )##\\  \\__,_|_|  \\___|_| |_||_|_|_| |_|\\__._/_/\\_\\
  /#.--   --.#\\
-/'           '\\ $W> $G$HOSTNAME $W
-$G--------------------------------------------------------------------$W
-$B        KERNEL $G:$Y $KERNEL $ARCH$W
-$B    CPU VENDOR $G:$Y $CPU_VENDOR$W
-$B           CPU $G:$Y $CPU$W
-$B         CORES $G:$Y $CORES$W
-$B     BOOT TYPE $G:$Y $BOOT_TYPE$W
-$B    IP ADDRESS $G:$Y ${IP_ADDRESSES[*]}$W
-$N
-$B        MEMORY $G:$Y $MEMORY1 $W/ $Y$MEMORY2 $W- $G$MEMPERCENT$W
-$B SYSTEM STATUS $G:$STATUS_COLOR $SYSTEM_STATUS$W
-$B      SERVICES $G:$G $SERVICES_RUNNING running $W/ $FAILED_COLOR$FAILED_SERVICES failed$W
-$B        UPTIME $G:$Y $upDays days $upHours hours $upMins minutes $upSecs seconds$W
-$B      LOAD AVG $G:$Y $LOAD1 $W| $Y$LOAD5 $W| $Y$LOAD15$W
-$B  USERS ACTIVE $G:$Y $USERS_COUNT users logged in$W
-$B           NTP $G:$SYNC_COLOR active ($SYNC_TEXT)$W
-$B   SYSTEM TIME $G:$Y $LOCAL_TIME $TIME_ZONE$W
-$G--------------------------------------------------------------------$W
-$N" > "$motd"
+/'           '\\ > $HOSTNAME
+--------------------------------------------------------------------
+        KERNEL : $KERNEL $ARCH
+    CPU VENDOR : $CPU_VENDOR
+           CPU : $CPU
+         CORES : $CORES
+     BOOT TYPE : $BOOT_TYPE
+    IP ADDRESS : ${IP_ADDRESSES[*]}
+
+        MEMORY : $MEMORY1 / $MEMORY2 - $MEMPERCENT
+ SYSTEM STATUS : $SYSTEM_STATUS
+      SERVICES : $SERVICES_RUNNING running / $FAILED_SERVICES failed
+        UPTIME : $upDays days $upHours hours $upMins minutes $upSecs seconds
+      LOAD AVG : $LOAD1 | $LOAD5 | $LOAD15
+  USERS ACTIVE : $USERS_COUNT users logged in
+           NTP : active ($SYNC_TEXT)
+   SYSTEM TIME : $LOCAL_TIME $TIME_ZONE
+--------------------------------------------------------------------
+EOF
