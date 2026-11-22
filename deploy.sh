@@ -224,6 +224,14 @@ deploy_local() {
         sudo python3 tools/patch_overview.py
     fi
 
+    # Install vibrant MOTD generator
+    if [ -f "tools/generate_motd.sh" ]; then
+        sudo mkdir -p /opt/arch-motd
+        sudo cp -f tools/generate_motd.sh /opt/arch-motd/generate_motd.sh
+        sudo chmod +x /opt/arch-motd/generate_motd.sh
+        sudo /opt/arch-motd/generate_motd.sh
+    fi
+
     # Restart Cockpit
     echo "Restarting Cockpit service & socket..."
     sudo systemctl restart cockpit.service cockpit.socket
@@ -238,9 +246,9 @@ deploy_plex() {
     wait_for_safe_deploy "remote"
 
     echo -e "\n\033[1;34m[2/3] Installing package on REMOTE host (plex: $REMOTE_PLEX)...\033[0m"
-    # Transfer package, terminal.html, overview-index.html, and patch_overview.py to /tmp
-    echo "Transferring $PKG_FILE, terminal.html, overview-index.html, and patch_overview.py to $REMOTE_PLEX:/tmp/..."
-    scp -o BatchMode=yes "$PKG_FILE" tools/terminal.html tools/overview-index.html tools/patch_overview.py "${REMOTE_PLEX}:/tmp/"
+    # Transfer package, terminal.html, overview-index.html, patch_overview.py, and generate_motd.sh to /tmp
+    echo "Transferring $PKG_FILE, terminal.html, overview-index.html, patch_overview.py, and generate_motd.sh to $REMOTE_PLEX:/tmp/..."
+    scp -o BatchMode=yes "$PKG_FILE" tools/terminal.html tools/overview-index.html tools/patch_overview.py tools/generate_motd.sh "${REMOTE_PLEX}:/tmp/"
 
     # Install on remote, remove user overrides, install terminal & overview enhancements, restart service
     echo "Installing package on remote via pacman -U and configuring enhancements..."
@@ -265,6 +273,13 @@ fi
 if [ -f "/tmp/patch_overview.py" ]; then
     sudo python3 /tmp/patch_overview.py
     rm -f /tmp/patch_overview.py
+fi
+if [ -f "/tmp/generate_motd.sh" ]; then
+    sudo mkdir -p /opt/arch-motd
+    sudo cp -f /tmp/generate_motd.sh /opt/arch-motd/generate_motd.sh
+    sudo chmod +x /opt/arch-motd/generate_motd.sh
+    sudo /opt/arch-motd/generate_motd.sh
+    rm -f /tmp/generate_motd.sh
 fi
 sudo systemctl restart cockpit.service cockpit.socket
 EOF

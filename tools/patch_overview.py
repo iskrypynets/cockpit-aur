@@ -17,19 +17,29 @@ TARGET = 'title:de.default.createElement("pre",{id:"motd"},e)'
 
 REPLACEMENT = (
     'title:de.default.createElement("pre",{id:"motd",'
-    'style:{fontFamily:"var(--pf-t--global--font--family--monospace,monospace)",lineHeight:1.25,overflowX:"auto"},'
+    'style:{background:"#0a0e17",color:"#f8fafc",padding:"16px 20px",borderRadius:"8px",'
+    'border:"1px solid #1e293b",boxShadow:"inset 0 2px 4px rgba(0,0,0,0.5)",'
+    'fontFamily:"var(--pf-t--global--font--family--monospace,monospace)",fontSize:"13px",'
+    'lineHeight:1.3,overflowX:"auto"},'
     'dangerouslySetInnerHTML:{__html:(()=>{'
     'if(!e)return"";'
-    'const c={"30":"#4b5563","31":"#ef4444","32":"#22c55e","33":"#eab308","34":"#3b82f6","35":"#d946ef","36":"#06b6d4","37":"#e5e7eb",'
-    '"90":"#9ca3af","91":"#f87171","92":"#4ade80","93":"#fde047","94":"#60a5fa","95":"#f472b6","96":"#38bdf8","97":"#ffffff"};'
+    'const c={"30":"#64748b","31":"#f87171","32":"#4ade80","33":"#fbbf24","34":"#60a5fa","35":"#e879f9","36":"#38bdf8","37":"#f1f5f9",'
+    '"90":"#94a3b8","91":"#fca5a5","92":"#86efac","93":"#fde047","94":"#93c5fd","95":"#f0abfc","96":"#67e8f9","97":"#ffffff"};'
     'const esc=t=>t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");'
-    'let fg=null,bold=false,open=false,out="",last=0;'
     'let s=e.replace(/(?:\\x1b|\\u001b|\\\\e)\\[[0-9;]*[HfABCDJKsu]/g,"").trimEnd();'
+    'let fg=null,bold=false,open=false,out="",last=0;'
     'const re=/(?:\\x1b|\\u001b|\\\\e)\\[([0-9;]*)m|(?:^|\\s)\\[((?:01;|00;)?[0-9]{1,2}(?:;[0-9]{1,2})*)m/g;'
     'let m;'
     'while((m=re.exec(s))!==null){'
     'const chunk=s.slice(last,m.index);'
-    'if(chunk)out+=esc(chunk);'
+    'if(chunk){'
+    'let t=esc(chunk);'
+    'if(!fg){'
+    't=t.replace(/\\b(running|active|Synchronised|0 failed)\\b/g,"<span style=\\"color:#4ade80!important;font-weight:bold!important\\">$1</span>");'
+    't=t.replace(/\\b(degraded|failed|NOT Synchronised)\\b/g,"<span style=\\"color:#f87171!important;font-weight:bold!important\\">$1</span>");'
+    '}'
+    'out+=t;'
+    '}'
     'last=re.lastIndex;'
     'const cs=m[1]!==undefined?m[1]:m[2];'
     'const codes=cs?cs.split(";").map(Number):[0];'
@@ -42,12 +52,19 @@ REPLACEMENT = (
     '}'
     'if(open){out+="</span>";open=false;}'
     'const st=[];'
-    'if(fg)st.push("color:"+fg);'
-    'if(bold)st.push("font-weight:bold");'
+    'if(fg)st.push("color:"+fg+"!important");'
+    'if(bold)st.push("font-weight:bold!important");'
     'if(st.length>0){out+="<span style=\\""+st.join(";")+"\\">";open=true;}'
     '}'
     'const rem=s.slice(last);'
-    'if(rem)out+=esc(rem);'
+    'if(rem){'
+    'let t=esc(rem);'
+    'if(!fg){'
+    't=t.replace(/\\b(running|active|Synchronised|0 failed)\\b/g,"<span style=\\"color:#4ade80!important;font-weight:bold!important\\">$1</span>");'
+    't=t.replace(/\\b(degraded|failed|NOT Synchronised)\\b/g,"<span style=\\"color:#f87171!important;font-weight:bold!important\\">$1</span>");'
+    '}'
+    'out+=t;'
+    '}'
     'if(open)out+="</span>";'
     'return out;'
     '})()}})'
@@ -68,10 +85,6 @@ def patch_overview():
         content = f.read()
 
     if TARGET not in content:
-        # Check if already patched
-        if "dangerouslySetInnerHTML" in content and "motd" in content:
-            print("Already patched!")
-            return True
         print(f"Error: Target snippet not found in {ORIG_GZ}", file=sys.stderr)
         return False
 
