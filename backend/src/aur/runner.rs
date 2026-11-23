@@ -279,6 +279,18 @@ pub fn run_aur_operation(
         _ => return Err(anyhow!("Unsupported AUR helper '{helper_name}'")),
     }
 
+    let (op_name, op_target, op_raw_packages) = match &op {
+        AurOperation::Install(pkg) => ("install", Some(*pkg), vec![pkg.to_string()]),
+        AurOperation::Upgrade(pkgs) => ("upgrade", None, pkgs.to_vec()),
+    };
+
+    // Pre-resolve AUR dependency build order so operation status contains the complete topological list
+    let op_packages = if let Ok(handle) = crate::alpm::get_handle() {
+        super::deps::resolve_aur_build_order(&handle, &op_raw_packages).unwrap_or(op_raw_packages)
+    } else {
+        op_raw_packages
+    };
+
     // Reset previous exit code file and truncate previous log file
     let _ = std::fs::remove_file(EXIT_CODE_FILE);
     let _ = std::fs::write(LOG_FILE, "");
@@ -333,11 +345,6 @@ pub fn run_aur_operation(
     let mut child = cmd
         .spawn()
         .with_context(|| format!("Failed to spawn {helper_name}"))?;
-
-    let (op_name, op_target, op_packages) = match &op {
-        AurOperation::Install(pkg) => ("install", Some(*pkg), vec![pkg.to_string()]),
-        AurOperation::Upgrade(pkgs) => ("upgrade", None, pkgs.to_vec()),
-    };
 
     let started_at = current_timestamp();
     write_operation_status(

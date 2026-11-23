@@ -295,6 +295,7 @@ pub unsafe fn initialize(command: &str) {
             | "aur-pkgbuild"
             | "aur-install"
             | "aur-upgrade"
+            | "aur-resolve-graph"
             | "upgrade"
             | "install-package"
             | "preflight-downgrade-archive"

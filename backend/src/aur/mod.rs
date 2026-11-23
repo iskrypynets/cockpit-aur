@@ -1,3 +1,4 @@
+pub mod deps;
 pub mod helper;
 pub mod history;
 pub mod models;
@@ -5,6 +6,7 @@ pub mod rpc;
 pub mod runner;
 pub mod updates;
 
+pub use deps::{resolve_aur_build_order, AurDependencyGraphResponse};
 pub use helper::detect_helper;
 pub use history::{get_aur_history, get_aur_history_log, record_aur_operation};
 pub use models::{AurHelperInfo, AurPackageDetails, AurPkgbuildResponse};

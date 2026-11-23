@@ -3,6 +3,11 @@
 export type AddReason = "target" | "dependency";
 
 /**
+ * Resolved AUR dependency build graph
+ */
+export type AurDependencyGraphResponse = { packages: Array<string>, total: number, };
+
+/**
  * Information about installed AUR helper on the host system
  */
 export type AurHelperInfo = { helper: string, path: string | null, available: boolean, version: string | null, };

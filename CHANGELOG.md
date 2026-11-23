@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.5.7] - 2026-11-23
+
+### Added
+- **Topological Dependency Graph Resolution (`backend/src/aur/deps.rs`)**:
+  - Implemented full recursive AUR dependency build graph resolution via ALPM database inspection and AUR RPC.
+  - Automatically identifies missing foreign runtime and build dependencies, filters out installed packages and repository satisfies, and performs topological sorting (Kahn's algorithm) to determine the exact build sequence.
+  - Exposed via backend subcommand and endpoint `aur-resolve-graph`.
+  - Integrated into `run_aur_operation` so background operation files (`/tmp/cockpit-aur-operation.json`) and progress tracking strictly adhere to the resolved topological graph.
+- **Dual Localization (`en`, `uk`)**:
+  - Implemented full internationalization architecture (`src/i18n/`) supporting both English (`en`, default) and Ukrainian (`uk`).
+  - Added dynamic Cockpit language detection (`cockpit.language`) with browser fallback and manual persistence.
+  - Translated top-level navigation tabs, transaction progress phases, status banners, action buttons, and modal dialogs.
+  - Standardized all internal code comments and repository documentation strictly in English.
+
+### Fixed
+- **Robust Status Display during AUR Builds**:
+  - Decoupled progress status tracking from fragile header string parsing.
+  - Bound active package indexing and remaining package counts strictly to the pre-resolved topological build order, preventing progress jumps or displaying final explicit targets while earlier dependencies are compiling.
+
 ## [0.5.6] - 2026-11-23
 
 ### Fixed

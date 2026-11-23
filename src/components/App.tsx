@@ -41,6 +41,7 @@ import { bundleVersion, mismatchedBackendVersion } from "../version";
 import { onActiveTransactionChanged, onSystemChanged } from "../api";
 import { useAnnounce } from "../contexts/AnnouncerContext";
 import { currentTab, useRoute, type RouteOptions } from "../hooks/useRoute";
+import { useTranslation } from "../i18n/index";
 
 export type SignoffAvailability =
   | { state: "hidden" }
@@ -146,6 +147,7 @@ export const App: React.FC = () => {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const jumpInputRef = useRef<HTMLInputElement | null>(null);
   const announce = useAnnounce();
+  const { t } = useTranslation();
   const { selectedPackage, detailsLoading, detailsError, detailsErrorCode, detailsErrorContext, fetchDetails, clearDetails } = usePackageDetails();
 
   const routedSlug = TABS.some((t) => t.slug === route.tab) ? route.tab : "updates";
@@ -449,7 +451,7 @@ export const App: React.FC = () => {
             eventKey={0}
             title={
               <TabTitleText>
-                Updates
+                {t("tabUpdates")}
                 {updateStatus.failed ? (
                   <>
                     {" "}
@@ -487,7 +489,7 @@ export const App: React.FC = () => {
               </ErrorBoundary>
             </TabActiveContext.Provider>
           </Tab>
-          <Tab eventKey={1} title={<TabTitleText>Installed packages</TabTitleText>}>
+          <Tab eventKey={1} title={<TabTitleText>{t("tabInstalled")}</TabTitleText>}>
             <TabActiveContext.Provider value={activeTab === 1}>
               {activeTab === 1 && transactionBanner}
               <ErrorBoundary fallbackTitle="Error loading packages">
@@ -499,7 +501,7 @@ export const App: React.FC = () => {
               </ErrorBoundary>
             </TabActiveContext.Provider>
           </Tab>
-          <Tab eventKey={2} title={<TabTitleText>Search packages</TabTitleText>}>
+          <Tab eventKey={2} title={<TabTitleText>{t("tabSearch")}</TabTitleText>}>
             <TabActiveContext.Provider value={activeTab === 2}>
               {activeTab === 2 && transactionBanner}
               <ErrorBoundary fallbackTitle="Error loading search">
@@ -511,7 +513,7 @@ export const App: React.FC = () => {
               </ErrorBoundary>
             </TabActiveContext.Provider>
           </Tab>
-          <Tab eventKey={3} title={<TabTitleText>History</TabTitleText>}>
+          <Tab eventKey={3} title={<TabTitleText>{t("tabHistory")}</TabTitleText>}>
             <TabActiveContext.Provider value={activeTab === 3}>
               {activeTab === 3 && transactionBanner}
               <ErrorBoundary fallbackTitle="Error loading history">
@@ -519,7 +521,7 @@ export const App: React.FC = () => {
               </ErrorBoundary>
             </TabActiveContext.Provider>
           </Tab>
-          <Tab eventKey={4} title={<TabTitleText>Cache</TabTitleText>}>
+          <Tab eventKey={4} title={<TabTitleText>{t("tabCache")}</TabTitleText>}>
             <TabActiveContext.Provider value={activeTab === 4}>
               {activeTab === 4 && transactionBanner}
               <ErrorBoundary fallbackTitle="Error loading cache">
@@ -533,7 +535,7 @@ export const App: React.FC = () => {
               </ErrorBoundary>
             </TabActiveContext.Provider>
           </Tab>
-          <Tab eventKey={5} title={<TabTitleText>Keyring</TabTitleText>}>
+          <Tab eventKey={5} title={<TabTitleText>{t("tabKeyring")}</TabTitleText>}>
             <TabActiveContext.Provider value={activeTab === 5}>
               {activeTab === 5 && transactionBanner}
               <ErrorBoundary fallbackTitle="Error loading keyring">
@@ -545,7 +547,7 @@ export const App: React.FC = () => {
               </ErrorBoundary>
             </TabActiveContext.Provider>
           </Tab>
-          <Tab eventKey={6} title={<TabTitleText>Mirrors</TabTitleText>}>
+          <Tab eventKey={6} title={<TabTitleText>{t("tabMirrors")}</TabTitleText>}>
             <TabActiveContext.Provider value={activeTab === 6}>
               {activeTab === 6 && transactionBanner}
               {visitedTabs.has(6) && (
@@ -555,7 +557,7 @@ export const App: React.FC = () => {
               )}
             </TabActiveContext.Provider>
           </Tab>
-          <Tab eventKey={8} title={<TabTitleText>Repositories</TabTitleText>}>
+          <Tab eventKey={8} title={<TabTitleText>{t("tabRepositories")}</TabTitleText>}>
             <TabActiveContext.Provider value={activeTab === 8}>
               {activeTab === 8 && transactionBanner}
               <ErrorBoundary fallbackTitle="Error loading repositories">
@@ -568,7 +570,7 @@ export const App: React.FC = () => {
               eventKey={7}
               title={
                 <TabTitleText>
-                  Signoffs
+                  {t("tabSignoffs")}
                   {signoffAvailable && !!toSignOff && (
                     <>
                       {" "}

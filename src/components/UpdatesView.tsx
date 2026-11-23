@@ -109,7 +109,9 @@ import {
   parseErrorCode,
   BackendError,
   onSystemChanged,
+  resolveAurDependencyGraph,
 } from "../api";
+import { t } from "../i18n/index";
 import type { KeyringCredentials, ErrorCode, ScheduledRunEntry, StreamingHandle } from "../api";
 import { NetworkErrorState } from "./NetworkErrorState";
 import { ErrorDetails } from "./ErrorDetails";
@@ -1132,13 +1134,14 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
             ...initialProgress,
             value: 50,
             phase: "aur",
-            phaseLabel: `Upgrading AUR packages (${pkgs.length > 0 ? "in progress" : "running"})`,
-            stepLabel: total > 1 ? `Reconnected to active background upgrade (${total} packages)` : "Reconnected to active background upgrade",
+            phaseLabel: t("upgradingAurPackages", { current: 1, total }),
+            stepLabel: t("aurReconnected", { total }),
             item: pkgs[0] ?? "",
             stage: "transaction",
             fileBytes: {},
             removeTotal: 0,
             aurPackages: pkgs,
+            aurTotal: total,
           };
           setState("applying");
           setUpgradeProgress(baseState);
@@ -1163,7 +1166,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
                   interval = undefined;
                 }
                 if (st.status === "completed" || st.exit_code === 0) {
-                  announce("AUR upgrade completed successfully");
+                  announce(t("updatesComplete"));
                   loadUpdates();
                   setState("success");
                 } else {
@@ -1445,18 +1448,33 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
       : selectedUpdates.filter((u) => u.repository === "aur").map((u) => u.name);
     const totalAur = resolvedAurPackages.length;
 
-    const runAur = () => {
+    const runAur = async () => {
+      let activeAurPackages = resolvedAurPackages;
+      let activeTotalAur = totalAur;
+
+      try {
+        const graph = await resolveAurDependencyGraph(resolvedAurPackages);
+        if (graph.packages && graph.packages.length > 0) {
+          activeAurPackages = graph.packages;
+          activeTotalAur = graph.packages.length;
+        }
+      } catch {
+        // Fall back to resolvedAurPackages
+      }
+
       appendLog("\n[COCKPIT-AUR] Starting AUR upgrade with helper...\n");
       // Immediately transition progress from repo post-transaction hooks to AUR phase!
       setUpgradeProgress({
         value: 0,
         phase: "aur",
-        phaseLabel: totalAur > 0 ? `Upgrading AUR packages (1 of ${totalAur})` : "Upgrading AUR packages",
-        stepLabel: totalAur > 0 ? `Package 1 of ${totalAur} (${totalAur} remaining)` : "Preparing AUR helper",
-        item: resolvedAurPackages[0] ?? "",
+        phaseLabel: activeTotalAur > 0 ? t("upgradingAurPackages", { current: 1, total: activeTotalAur }) : t("upgradingPackages"),
+        stepLabel: activeTotalAur > 0 ? t("aurPackageProgress", { current: 1, total: activeTotalAur, remaining: activeTotalAur }) : t("preparing"),
+        item: activeAurPackages[0] ?? "",
         stage: "transaction",
         fileBytes: {},
         removeTotal: 0,
+        aurPackages: activeAurPackages,
+        aurTotal: activeTotalAur,
       });
 
       cancelRef.current = upgradeAurPackages({
@@ -1464,15 +1482,15 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
         onData: (data) => {
           appendLog(data);
           setUpgradeProgress((prev) =>
-            foldAurProgress(prev, data, totalAur, resolvedAurPackages)
+            foldAurProgress(prev, data, activeTotalAur, activeAurPackages)
           );
         },
         onComplete: () => {
           setUpgradeProgress((prev) => ({
             ...prev,
             phase: "aur",
-            phaseLabel: `AUR packages upgraded (${totalAur} of ${totalAur})`,
-            stepLabel: `${totalAur} of ${totalAur} completed`,
+            phaseLabel: t("aurPackagesUpgraded", { current: activeTotalAur, total: activeTotalAur }),
+            stepLabel: `${activeTotalAur} of ${activeTotalAur} completed`,
             value: 100,
           }));
           finishUpgrade();
@@ -1483,7 +1501,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
           announce("AUR upgrade failed", { assertive: true });
           failWith("upgrade", err, code, details);
         },
-      }, undefined, resolvedAurPackages);
+      }, undefined, activeAurPackages);
     };
 
     if (hasRepoUpdates) {

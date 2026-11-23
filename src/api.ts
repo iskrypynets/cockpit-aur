@@ -7,6 +7,7 @@ import { startSystemWatch, type FileWatch } from "./systemWatch";
 // backend/src + src/bindings). Imported for local use and re-exported so
 // consumers keep importing them from "../api".
 import type {
+  AurDependencyGraphResponse,
   AurHelperInfo,
   AurPackageDetails,
   AurPkgbuildResponse,
@@ -440,6 +441,13 @@ export async function getAurHistoryLog(id: string): Promise<{ id: string; log: s
 
 export async function getAurOperationStatus(): Promise<AurOperationStatus> {
   return runBackend<AurOperationStatus>("aur-operation-status", [], { superuser: "none" });
+}
+
+export async function resolveAurDependencyGraph(packages: string[]): Promise<AurDependencyGraphResponse> {
+  if (packages.length === 0) {
+    return { packages: [], total: 0 };
+  }
+  return runBackend<AurDependencyGraphResponse>("aur-resolve-graph", [packages.join(",")], { superuser: "none" });
 }
 
 export async function getAurOperationLog(): Promise<{ log: string }> {

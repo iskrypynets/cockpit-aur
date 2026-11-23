@@ -71,6 +71,7 @@ const COMMANDS: &[&str] = &[
     "aur-helper",
     "aur-install",
     "aur-upgrade",
+    "aur-resolve-graph",
     "undo-repo-save",
     "undo-mirror-save",
     "cache-cleanup-preview",
@@ -169,6 +170,8 @@ Commands:
                          Install an AUR package using yay or paru
   aur-upgrade [helper] [timeout] [packages]
                          Upgrade installed AUR packages using yay or paru
+  aur-resolve-graph [packages]
+                         Resolve topological build graph for AUR packages
   aur-operation-status   Get current background AUR operation status
   aur-operation-log      Read logs of current or recent background AUR operation
   aur-history [search] [limit]
@@ -604,6 +607,24 @@ fn main() {
                 timeout,
             )
         }
+        "aur-resolve-graph" => (|| -> anyhow::Result<()> {
+            let packages = args
+                .get(2)
+                .map(|s| {
+                    s.split(',')
+                        .map(|p| p.trim().to_string())
+                        .filter(|p| !p.is_empty())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let handle = cockpit_aur_backend::alpm::get_handle()?;
+            let resolved = cockpit_aur_backend::aur::resolve_aur_build_order(&handle, &packages)?;
+            let total = resolved.len();
+            cockpit_aur_backend::util::emit_json(&cockpit_aur_backend::aur::AurDependencyGraphResponse {
+                packages: resolved,
+                total,
+            })
+        })(),
         "aur-operation-status" => cockpit_aur_backend::aur::get_operation_status(),
         "aur-operation-log" => cockpit_aur_backend::aur::get_operation_log(),
         "aur-history" => {
