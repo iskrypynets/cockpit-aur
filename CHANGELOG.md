@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.8] - 2026-11-23
+
+### Fixed
+- **Resilient Update Checks & Mirror Fallback Handling (`src/constants.ts`, `src/api.ts`)**:
+  - Increased frontend timeout for `check-updates` (`CHECK_UPDATES_TIMEOUT_MS`) from 30s to 60s. This ensures ALPM database synchronization has adequate budget to timeout on unresponsive or unroutable top mirrors and fall back across healthy secondary mirrors without Cockpit killing the process mid-transfer.
+- **Stale Lock & Partial Download Prevention (`backend/src/alpm/mod.rs`)**:
+  - Enhanced `get_check_handle()` to automatically clear any stale `db.lck` and remove lingering `.part` download files from the isolated user check database directory (`/tmp/checkup-db-${UID}/`) on initialization, preventing aborted or timed-out check operations from locking future update checks.
+- **Package Row Actions Testing Cleanup (`src/components/PackageRowActions.test.tsx`)**:
+  - Added clean DOM teardown between test cases and explicit undefined reason initialization in install reason gating tests.
+
 ## [0.5.7] - 2026-11-23
 
 ### Added

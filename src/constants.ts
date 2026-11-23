@@ -8,6 +8,8 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 export const BACKEND_TIMEOUT_MS = 30000;
 
+export const CHECK_UPDATES_TIMEOUT_MS = 60000;
+
 export const STREAM_FIRST_OUTPUT_TIMEOUT_MS = 60000;
 
 export const MAX_LOG_SIZE_BYTES = 100000;

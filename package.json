@@ -1,6 +1,6 @@
 {
   "name": "cockpit-aur",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "description": "Cockpit plugin for Arch Linux package management with AUR and yay/paru support",
   "author": "gf <green_forest@ukr.net>",
   "homepage": "https://github.com/iskrypynets/cockpit-aur",

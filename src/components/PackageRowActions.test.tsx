@@ -88,6 +88,10 @@ const INSTALLED_VERBS = [
 ];
 
 describe("PackageRowActions", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockListIgnored.mockResolvedValue({ packages: [], total: 0 });
@@ -206,7 +210,7 @@ describe("PackageRowActions", () => {
       .mockResolvedValueOnce({ success: true, name: "vim", reason: "dependency", previous: "explicit" })
       .mockResolvedValueOnce({ success: true, name: "vim", reason: "explicit", previous: "dependency" });
     mockGetPackageInfo.mockResolvedValue({ ...localVim, reason: "dependency", required_by: ["gvim"] } as api.PackageDetails);
-    renderActions(installed);
+    renderActions({ ...installed, reason: undefined });
     const menu = await openMenu();
     const pending = item(menu, "Change the install reason of vim");
     expect(pending).toHaveAttribute("aria-disabled", "true");

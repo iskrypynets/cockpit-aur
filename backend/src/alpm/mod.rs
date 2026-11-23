@@ -58,6 +58,21 @@ pub fn get_check_handle() -> Result<Alpm> {
             let _ = std::os::unix::fs::symlink(&sys_local, &local_symlink);
         }
         if local_symlink.exists() {
+            // Clean up any stale db.lck in our isolated check database directory
+            // (e.g. if a previous check was aborted or killed by timeout).
+            let _ = std::fs::remove_file(check_db.join("db.lck"));
+
+            // Also clean up any lingering 0-byte or corrupted .part files in sync/
+            let sync_dir = check_db.join("sync");
+            if let Ok(entries) = std::fs::read_dir(&sync_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.extension().and_then(|e| e.to_str()) == Some("part") {
+                        let _ = std::fs::remove_file(path);
+                    }
+                }
+            }
+
             check_conf.db_path = check_db.display().to_string();
             using_check_db = true;
         }

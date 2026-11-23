@@ -1,4 +1,4 @@
-import { BACKEND_TIMEOUT_MS, STREAM_FIRST_OUTPUT_TIMEOUT_MS } from "./constants";
+import { BACKEND_TIMEOUT_MS, CHECK_UPDATES_TIMEOUT_MS, STREAM_FIRST_OUTPUT_TIMEOUT_MS } from "./constants";
 import { isDbLockError, sanitizeSearchInput } from "./utils";
 import { initialProgress, progressPercent, reduceProgress, type ProgressState } from "./progress";
 import { startSystemWatch, type FileWatch } from "./systemWatch";
@@ -340,7 +340,10 @@ export async function listInstalled(
 }
 
 export async function checkUpdates(): Promise<UpdatesResponse> {
-  return runBackend<UpdatesResponse>("check-updates", [], { superuser: "none" });
+  return runBackend<UpdatesResponse>("check-updates", [], {
+    superuser: "none",
+    timeoutMs: CHECK_UPDATES_TIMEOUT_MS,
+  });
 }
 
 export async function checkLock(): Promise<LockStatus> {
