@@ -92,7 +92,10 @@ pub fn get_operation_status() -> Result<()> {
                         status.error = Some(format!("AUR operation failed with exit code {code}"));
                     }
                     status.updated_at = current_timestamp();
-                    let _ = crate::util::write_json_atomic(std::path::Path::new(OPERATION_FILE), &status);
+                    let _ = crate::util::write_json_atomic(
+                        std::path::Path::new(OPERATION_FILE),
+                        &status,
+                    );
                     return crate::util::emit_json(&status);
                 }
             }
@@ -107,7 +110,10 @@ pub fn get_operation_status() -> Result<()> {
                 if !pid_alive && !helper_alive {
                     status.status = "interrupted".to_string();
                     status.error = Some("Operation process terminated unexpectedly".to_string());
-                    let _ = crate::util::write_json_atomic(std::path::Path::new(OPERATION_FILE), &status);
+                    let _ = crate::util::write_json_atomic(
+                        std::path::Path::new(OPERATION_FILE),
+                        &status,
+                    );
                 }
             }
             return crate::util::emit_json(&status);
@@ -127,7 +133,10 @@ pub fn get_operation_status() -> Result<()> {
 
 fn is_aur_helper_running() -> bool {
     for binary in ["yay", "makepkg", "paru", "pacman"] {
-        if let Ok(output) = std::process::Command::new("pgrep").args(["-x", binary]).output() {
+        if let Ok(output) = std::process::Command::new("pgrep")
+            .args(["-x", binary])
+            .output()
+        {
             if !output.stdout.is_empty() {
                 return true;
             }
@@ -210,7 +219,10 @@ pub fn run_aur_operation(
     let op_description = match &op {
         AurOperation::Install(pkg) => format!("Installing AUR package '{pkg}' using {helper_name}"),
         AurOperation::Upgrade(pkgs) if !pkgs.is_empty() => {
-            format!("Upgrading {} AUR package(s) using {helper_name}", pkgs.len())
+            format!(
+                "Upgrading {} AUR package(s) using {helper_name}",
+                pkgs.len()
+            )
         }
         AurOperation::Upgrade(_) => format!("Upgrading AUR packages using {helper_name}"),
     };
@@ -271,7 +283,12 @@ pub fn run_aur_operation(
             ]);
         }
         ("paru", AurOperation::Install(pkg)) => {
-            helper_cmd_args.extend(["-S".into(), pkg.to_string(), "--noconfirm".into(), "--skipreview".into()]);
+            helper_cmd_args.extend([
+                "-S".into(),
+                pkg.to_string(),
+                "--noconfirm".into(),
+                "--skipreview".into(),
+            ]);
         }
         ("paru", AurOperation::Upgrade(_)) => {
             helper_cmd_args.extend(["-Sua".into(), "--noconfirm".into(), "--skipreview".into()]);
@@ -301,9 +318,8 @@ pub fn run_aur_operation(
     // directly to LOG_FILE and writes the exit code to EXIT_CODE_FILE.
     // This provides 100% resilience against broken pipes (SIGPIPE) when Cockpit session
     // disconnects, and guarantees the exit code is saved to disk even if the parent dies!
-    let shell_script = format!(
-        "\"$@\" > '{LOG_FILE}' 2>&1; ret=$?; echo $ret > '{EXIT_CODE_FILE}'; exit $ret"
-    );
+    let shell_script =
+        format!("\"$@\" > '{LOG_FILE}' 2>&1; ret=$?; echo $ret > '{EXIT_CODE_FILE}'; exit $ret");
 
     let mut cmd = if is_root {
         let user = match sudo_user.as_deref() {
@@ -319,12 +335,27 @@ pub fn run_aur_operation(
             }
         };
         let mut c = Command::new("runuser");
-        c.arg("-u").arg(user).arg("--").arg("sh").arg("-c").arg(&shell_script).arg("--");
+        c.arg("-u")
+            .arg(user)
+            .arg("--")
+            .arg("sh")
+            .arg("-c")
+            .arg(&shell_script)
+            .arg("--");
         c.args(&helper_cmd_args);
         c
     } else if has_systemd_run {
         let mut c = Command::new("systemd-run");
-        c.args(["--user", "--scope", "-q", "--", "sh", "-c", &shell_script, "--"]);
+        c.args([
+            "--user",
+            "--scope",
+            "-q",
+            "--",
+            "sh",
+            "-c",
+            &shell_script,
+            "--",
+        ]);
         c.args(&helper_cmd_args);
         c
     } else {
@@ -368,7 +399,9 @@ pub fn run_aur_operation(
             if let Ok(f) = std::fs::File::open(LOG_FILE) {
                 break Some(f);
             }
-            if is_finished_clone.load(AtomicOrdering::SeqCst) || start_wait.elapsed() > Duration::from_secs(5) {
+            if is_finished_clone.load(AtomicOrdering::SeqCst)
+                || start_wait.elapsed() > Duration::from_secs(5)
+            {
                 break None;
             }
             std::thread::sleep(Duration::from_millis(50));
@@ -431,8 +464,12 @@ pub fn run_aur_operation(
         // Stdin closing (e.g. session lock, tab disconnect) does NOT kill the ongoing upgrade!
         if is_explicit_cancel() {
             let _ = child.kill();
-            let _ = std::process::Command::new("pkill").args(["-TERM", "-x", "makepkg"]).status();
-            let _ = std::process::Command::new("pkill").args(["-TERM", "-x", "yay"]).status();
+            let _ = std::process::Command::new("pkill")
+                .args(["-TERM", "-x", "makepkg"])
+                .status();
+            let _ = std::process::Command::new("pkill")
+                .args(["-TERM", "-x", "yay"])
+                .status();
             is_finished.store(true, AtomicOrdering::SeqCst);
             let _ = child.wait();
             let _ = tail_handle.join();
@@ -457,8 +494,12 @@ pub fn run_aur_operation(
 
         if start_time.elapsed() > timeout_duration {
             let _ = child.kill();
-            let _ = std::process::Command::new("pkill").args(["-TERM", "-x", "makepkg"]).status();
-            let _ = std::process::Command::new("pkill").args(["-TERM", "-x", "yay"]).status();
+            let _ = std::process::Command::new("pkill")
+                .args(["-TERM", "-x", "makepkg"])
+                .status();
+            let _ = std::process::Command::new("pkill")
+                .args(["-TERM", "-x", "yay"])
+                .status();
             is_finished.store(true, AtomicOrdering::SeqCst);
             let err_msg = format!(
                 "Operation timed out after {} seconds",

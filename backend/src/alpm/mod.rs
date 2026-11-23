@@ -78,7 +78,8 @@ pub fn get_check_handle() -> Result<Alpm> {
         }
     }
 
-    let mut handle = alpm_with_conf(&check_conf).context("Failed to initialize check alpm handle")?;
+    let mut handle =
+        alpm_with_conf(&check_conf).context("Failed to initialize check alpm handle")?;
     handle
         .add_hookdir("/usr/share/libalpm/hooks/")
         .context("Failed to add system hookdir")?;

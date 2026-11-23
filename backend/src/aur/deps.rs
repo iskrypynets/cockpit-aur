@@ -27,10 +27,7 @@ pub fn extract_pkg_name(dep_str: &str) -> &str {
 /// Resolve the complete topological build graph of AUR packages and their AUR dependencies.
 /// Uses ALPM to filter out already-installed packages and repository packages,
 /// and AUR RPC to resolve foreign dependencies recursively.
-pub fn resolve_aur_build_order(
-    handle: &Alpm,
-    target_pkgs: &[String],
-) -> Result<Vec<String>> {
+pub fn resolve_aur_build_order(handle: &Alpm, target_pkgs: &[String]) -> Result<Vec<String>> {
     if target_pkgs.is_empty() {
         return Ok(Vec::new());
     }
@@ -182,7 +179,10 @@ mod tests {
 
     #[test]
     fn test_extract_pkg_name() {
-        assert_eq!(extract_pkg_name("lib32-libarchive>=3.8.0"), "lib32-libarchive");
+        assert_eq!(
+            extract_pkg_name("lib32-libarchive>=3.8.0"),
+            "lib32-libarchive"
+        );
         assert_eq!(extract_pkg_name("gcc-libs<15"), "gcc-libs");
         assert_eq!(extract_pkg_name("python=3.12"), "python");
         assert_eq!(extract_pkg_name("sh: /bin/sh"), "sh");

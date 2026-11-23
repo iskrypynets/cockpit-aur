@@ -140,7 +140,7 @@ pub fn record_aur_operation(
     let log_dest = logs_dir.join(format!("{id}.log"));
     let mut has_log = false;
     if Path::new(LOG_FILE).exists() {
-        if let Ok(_) = fs::copy(LOG_FILE, &log_dest) {
+        if fs::copy(LOG_FILE, &log_dest).is_ok() {
             has_log = true;
         }
     } else if log_dest.exists() {
@@ -211,7 +211,9 @@ pub fn get_aur_history(search: Option<&str>, limit: Option<usize>) -> Result<()>
             .into_iter()
             .filter(|e| {
                 e.packages.iter().any(|p| p.to_lowercase().contains(&query))
-                    || e.target.as_ref().is_some_and(|t| t.to_lowercase().contains(&query))
+                    || e.target
+                        .as_ref()
+                        .is_some_and(|t| t.to_lowercase().contains(&query))
                     || e.operation.to_lowercase().contains(&query)
             })
             .collect()
@@ -236,7 +238,12 @@ pub fn get_aur_history(search: Option<&str>, limit: Option<usize>) -> Result<()>
 }
 
 pub fn get_aur_history_log(id: &str) -> Result<()> {
-    if !id.starts_with("aur-") || !id.chars().skip(4).all(|c| c.is_ascii_alphanumeric() || c == '-') {
+    if !id.starts_with("aur-")
+        || !id
+            .chars()
+            .skip(4)
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+    {
         return Err(anyhow!("Invalid AUR history ID: {id}"));
     }
 

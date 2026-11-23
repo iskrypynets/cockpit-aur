@@ -591,7 +591,10 @@ fn main() {
         }
         "aur-upgrade" => {
             let helper = arg_opt(&args, 2).filter(|s| !s.is_empty());
-            let timeout = args.get(3).filter(|s| !s.is_empty()).and_then(|s| s.parse().ok());
+            let timeout = args
+                .get(3)
+                .filter(|s| !s.is_empty())
+                .and_then(|s| s.parse().ok());
             let packages = args
                 .get(4)
                 .map(|s| {
@@ -620,10 +623,12 @@ fn main() {
             let handle = cockpit_aur_backend::alpm::get_handle()?;
             let resolved = cockpit_aur_backend::aur::resolve_aur_build_order(&handle, &packages)?;
             let total = resolved.len();
-            cockpit_aur_backend::util::emit_json(&cockpit_aur_backend::aur::AurDependencyGraphResponse {
-                packages: resolved,
-                total,
-            })
+            cockpit_aur_backend::util::emit_json(
+                &cockpit_aur_backend::aur::AurDependencyGraphResponse {
+                    packages: resolved,
+                    total,
+                },
+            )
         })(),
         "aur-operation-status" => cockpit_aur_backend::aur::get_operation_status(),
         "aur-operation-log" => cockpit_aur_backend::aur::get_operation_log(),
@@ -755,7 +760,9 @@ fn main() {
                 Some(s) => match parse_bool_arg(s) {
                     Some(b) => Some(b),
                     None => {
-                        eprintln!("Error: set-settings expects true or false for security-advisories");
+                        eprintln!(
+                            "Error: set-settings expects true or false for security-advisories"
+                        );
                         std::process::exit(1);
                     }
                 },

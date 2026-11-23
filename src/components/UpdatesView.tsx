@@ -59,7 +59,7 @@ import { TidyUpModal } from './TidyUpModal';
 import { ConfigReconciliationModal } from './ConfigReconciliationModal';
 import { DEFAULT_KEEP_VERSIONS, type CleanupProjection } from '../cacheProjection';
 import { KeyringWarnings, WarningsAlert } from './KeyringView';
-import { initialProgress, progressPercent, progressValueText, reduceProgress, reduceAurProgress, foldAurProgress, ProgressPlan, ProgressState } from '../progress';
+import { initialProgress, progressPercent, progressValueText, reduceProgress, foldAurProgress, ProgressPlan, ProgressState } from '../progress';
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,

@@ -6,14 +6,12 @@ pub mod rpc;
 pub mod runner;
 pub mod updates;
 
-pub use deps::{resolve_aur_build_order, AurDependencyGraphResponse};
+pub use deps::{AurDependencyGraphResponse, resolve_aur_build_order};
 pub use helper::detect_helper;
 pub use history::{get_aur_history, get_aur_history_log, record_aur_operation};
 pub use models::{AurHelperInfo, AurPackageDetails, AurPkgbuildResponse};
 pub use rpc::{clear_aur_cache, fetch_pkgbuild, info_aur, search_aur};
-pub use runner::{
-    AurOperation, get_operation_log, get_operation_status, run_aur_operation,
-};
+pub use runner::{AurOperation, get_operation_log, get_operation_status, run_aur_operation};
 pub use updates::find_aur_updates;
 
 use crate::alpm::get_handle;

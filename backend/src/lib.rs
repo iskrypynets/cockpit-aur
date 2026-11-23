@@ -1,4 +1,5 @@
 #![cfg_attr(not(test), warn(clippy::unwrap_used, clippy::expect_used))]
+#![allow(clippy::collapsible_if, clippy::too_many_arguments, clippy::manual_pattern_char_comparison, clippy::unnecessary_cast)]
 
 pub mod alpm;
 pub mod aur;
