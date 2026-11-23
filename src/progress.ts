@@ -22,6 +22,14 @@ export interface ProgressState {
   fileBytes: Record<string, number>;
   /** libalpm counts removals and installs separately and runs removals first. */
   removeTotal: number;
+  /** Discovered AUR packages across dependencies and explicit targets. */
+  aurPackages?: string[];
+  /** Completed AUR packages. */
+  aurCompleted?: string[];
+  /** Total packages discovered from helper dependency headers or pacman counts. */
+  aurTotal?: number;
+  /** Flag indicating we have entered actual compilation/build phase. */
+  aurBuildStarted?: boolean;
 }
 
 // Band edges only redistribute real work units; they are design choices, not measured weights.
@@ -156,44 +164,159 @@ export function reduceAurProgress(
   totalPackages: number,
   aurPackageList?: string[]
 ): ProgressState {
-  const makingMatch = line.match(/(?:Making package|Building|upgrading|installing)[:\s]+([a-zA-Z0-9@._+-]+)/i);
+  const trimmed = line.trim();
+  if (!trimmed) return state;
+
+  let aurPackages = state.aurPackages ? [...state.aurPackages] : (aurPackageList ? [...aurPackageList] : []);
+  let aurCompleted = state.aurCompleted ? [...state.aurCompleted] : [];
+  let aurTotal = state.aurTotal ?? totalPackages;
+  let aurBuildStarted = state.aurBuildStarted ?? false;
   let currentItem = state.item;
-  if (makingMatch && (!aurPackageList || aurPackageList.includes(makingMatch[1]))) {
-    currentItem = makingMatch[1];
+
+  // 1. Discover dependency headers and package counts
+  const depsMatch = trimmed.match(/::\s*(\d+)\s+dependencies\s+will\s+also\s+be\s+installed/i);
+  if (depsMatch) {
+    const depsCount = parseInt(depsMatch[1], 10);
+    aurTotal = Math.max(aurTotal, depsCount + (aurPackageList?.length ?? totalPackages));
   }
 
-  const countMatch = line.match(/\((\d+)\/(\d+)\)\s+(?:upgrading|installing|reinstalling)\s+([a-zA-Z0-9@._+-]+)/i);
-  let current = 0;
-  let total = totalPackages;
+  const upgMatch = trimmed.match(/::\s*(\d+)\s+packages\s+to\s+upgrade\/install/i);
+  if (upgMatch) {
+    aurTotal = Math.max(aurTotal, parseInt(upgMatch[1], 10));
+  }
 
-  if (countMatch) {
-    current = parseInt(countMatch[1], 10);
-    total = parseInt(countMatch[2], 10);
-    if (countMatch[3]) currentItem = countMatch[3];
-  } else if (aurPackageList && currentItem) {
-    const idx = aurPackageList.indexOf(currentItem);
-    if (idx !== -1) {
-      current = idx + 1;
-      total = Math.max(totalPackages, aurPackageList.length);
+  // 2. Discover package names from SRCINFO or helper lists
+  const srcInfoMatch = trimmed.match(/::\s*\((\d+)\/(\d+)\)\s+Parsing\s+SRCINFO:\s*([a-zA-Z0-9@._+-]+)/i);
+  if (srcInfoMatch) {
+    const pkg = srcInfoMatch[3];
+    if (pkg && !aurPackages.includes(pkg)) aurPackages.push(pkg);
+    aurTotal = Math.max(aurTotal, parseInt(srcInfoMatch[2], 10));
+  }
+
+  const helperPkgMatch = trimmed.match(/(?:^|\s)aur\/([a-zA-Z0-9@._+-]+)/i);
+  if (helperPkgMatch) {
+    const pkg = helperPkgMatch[1];
+    if (pkg && !aurPackages.includes(pkg)) aurPackages.push(pkg);
+  }
+
+  // 3. Detect transitions to real build phase
+  if (
+    /==>\s*(?:Checking (?:runtime|buildtime) dependencies|Starting (?:prepare|build|check|package)|Extracting sources|Entering fakeroot environment|Перевірка залежностей|Початок складання|Начало сборки)/i.test(trimmed) ||
+    /^(?:->\s*)?Building\s+[a-zA-Z0-9@._+-]+/i.test(trimmed)
+  ) {
+    aurBuildStarted = true;
+  }
+
+  // 4. Detect makepkg / helper making package
+  const makingMatch = trimmed.match(
+    /(?:==>\s*(?:Making package|Створення пакунка|Создание пакета)|(?:->\s*)?Building)[:\s]+([a-zA-Z0-9@._+-]+)/i
+  );
+  if (makingMatch) {
+    const pkg = makingMatch[1];
+    if (!aurPackages.includes(pkg)) aurPackages.push(pkg);
+    // If a package was previously completed but is being made again (retry), remove it from completed
+    aurCompleted = aurCompleted.filter((p) => p !== pkg);
+    // Advance previous item to completed if build is active and item changed
+    if (aurBuildStarted && currentItem && currentItem !== pkg && !aurCompleted.includes(currentItem)) {
+      aurCompleted.push(currentItem);
+    }
+    currentItem = pkg;
+    // Default to build started if no prior download-phase indicators were tracked
+    if (state.aurBuildStarted === undefined) {
+      aurBuildStarted = true;
     }
   }
 
-  if (total <= 0) total = 1;
-  const activeIndex = current > 0 ? current : 1;
-  const completed = Math.max(0, current > 0 ? current - 1 : 0);
-  const remaining = Math.max(1, total - completed);
-  const percent = Math.min(99, Math.round(((activeIndex - 0.5) / total) * 100));
+  // 5. Detect finished package build
+  const finishedMatch = trimmed.match(
+    /==>\s*(?:Finished making|Створення пакунка завершено|Создание пакета завершено)[:\s]+([a-zA-Z0-9@._+-]+)/i
+  );
+  if (finishedMatch) {
+    const pkg = finishedMatch[1];
+    if (!aurCompleted.includes(pkg)) aurCompleted.push(pkg);
+  }
 
-  const stepLabel = current > 0
-    ? `Package ${current} of ${total} (${remaining} remaining)`
-    : `${total} packages queued (${total} remaining)`;
+  // 6. Detect pacman installation
+  const countMatch = trimmed.match(
+    /\((\d+)\/(\d+)\)\s+(?:upgrading|installing|reinstalling|оновлення|встановлення|перевстановлення|обновление|установка|переустановка)\s+([a-zA-Z0-9@._+-]+)/i
+  );
+  if (countMatch) {
+    aurBuildStarted = true;
+    aurTotal = Math.max(aurTotal, parseInt(countMatch[2], 10));
+    const pkg = countMatch[3];
+    if (pkg) {
+      currentItem = pkg;
+      if (!aurCompleted.includes(pkg)) aurCompleted.push(pkg);
+    }
+  } else {
+    const pacmanSingle = trimmed.match(
+      /^(?:upgrading|installing|reinstalling|оновлення|встановлення|обновление|установка)\s+([a-zA-Z0-9@._+-]+)(?:\.\.\.|$)/i
+    );
+    if (pacmanSingle && pacmanSingle[1]) {
+      aurBuildStarted = true;
+      currentItem = pacmanSingle[1];
+    }
+  }
+
+  // Calculate total packages
+  let total = Math.max(aurTotal, aurPackages.length, aurPackageList?.length ?? 0, 1);
+
+  // Calculate current active package index
+  let current = 0;
+  if (countMatch) {
+    current = parseInt(countMatch[1], 10);
+  } else if (aurBuildStarted) {
+    current = Math.min(total, aurCompleted.length + 1);
+  }
+
+  const activeIndex = current > 0 ? current : 1;
+  const completed = aurCompleted.length;
+  const remaining = Math.max(1, total - completed);
+
+  let phaseLabel = "";
+  let stepLabel = "";
+  let percent = 0;
+
+  if (!aurBuildStarted) {
+    phaseLabel = `Preparing AUR packages (${total} queued)`;
+    stepLabel = currentItem
+      ? `Preparing sources for ${currentItem}`
+      : `${total} packages queued (${total} remaining)`;
+    percent = Math.min(15, Math.round(5 + (aurPackages.length / total) * 10));
+  } else {
+    phaseLabel = `Upgrading AUR packages (${activeIndex} of ${total})`;
+    stepLabel = current > 0
+      ? `Package ${current} of ${total} (${remaining} remaining)`
+      : `${total} packages queued (${total} remaining)`;
+    percent = Math.min(99, Math.round(((activeIndex - 0.5) / total) * 100));
+  }
 
   return {
     ...state,
     phase: "aur",
-    phaseLabel: `Upgrading AUR packages (${activeIndex} of ${total})`,
+    phaseLabel,
     stepLabel,
     item: currentItem,
     value: raise(state.value, percent),
+    aurPackages,
+    aurCompleted,
+    aurTotal,
+    aurBuildStarted,
   };
+}
+
+/** Folds multiple lines of AUR helper log output into a single updated ProgressState. */
+export function foldAurProgress(
+  base: ProgressState,
+  logChunk: string,
+  totalPackages: number,
+  aurPackageList?: string[]
+): ProgressState {
+  let next = base;
+  for (const line of logChunk.split("\n")) {
+    if (line.trim()) {
+      next = reduceAurProgress(next, line, totalPackages, aurPackageList);
+    }
+  }
+  return next;
 }

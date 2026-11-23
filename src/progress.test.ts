@@ -177,4 +177,77 @@ describe("reduceAurProgress", () => {
     expect(state.item).toBe("ruby-stdlib");
     expect(state.value).toBe(83);
   });
+
+  it("accurately reports compiling dependency without jumping prematurely to explicit target", () => {
+    const pkgs = ["lib32-imlib2", "antigravity"];
+    let state: ProgressState = {
+      ...initialProgress,
+      phase: "aur",
+      phaseLabel: "Upgrading AUR packages (1 of 2)",
+      stepLabel: "2 packages queued (2 remaining)",
+      value: 0,
+    };
+
+    // Pre-download / source verification phase in yay
+    state = reduceAurProgress(state, ":: Searching AUR for updates...", 2, pkgs);
+    state = reduceAurProgress(state, ":: 4 dependencies will also be installed for this operation.", 2, pkgs);
+    state = reduceAurProgress(state, "   aur/lib32-libarchive -> 3.8.11-1", 2, pkgs);
+    state = reduceAurProgress(state, ":: (1/1) Downloaded PKGBUILD: antigravity", 2, pkgs);
+    state = reduceAurProgress(state, "==> Making package: lib32-imlib2 1.13.0-1", 2, pkgs);
+    state = reduceAurProgress(state, "==> Retrieving sources...", 2, pkgs);
+    state = reduceAurProgress(state, "==> Making package: antigravity 2.34.0-1", 2, pkgs);
+    state = reduceAurProgress(state, "==> Retrieving sources...", 2, pkgs);
+    state = reduceAurProgress(state, ":: (1/6) Parsing SRCINFO: lib32-libarchive", 2, pkgs);
+    state = reduceAurProgress(state, ":: (3/6) Parsing SRCINFO: antigravity", 2, pkgs);
+
+    // During pre-download, it should NOT say Upgrading AUR packages (2 of 2) or 75%
+    expect(state.phaseLabel).toContain("Preparing AUR packages");
+    expect(state.value).toBeLessThanOrEqual(15);
+
+    // Now actual build starts for lib32-libarchive (a dependency not in explicit target list)
+    state = reduceAurProgress(state, "==> Making package: lib32-libarchive 3.8.11-1", 2, pkgs);
+    state = reduceAurProgress(state, "==> Checking runtime dependencies...", 2, pkgs);
+    state = reduceAurProgress(state, "==> Starting build()...", 2, pkgs);
+    state = reduceAurProgress(state, "CC libarchive/archive_write_set_format_iso9660.lo", 2, pkgs);
+
+    // It MUST report lib32-libarchive, NOT antigravity!
+    expect(state.item).toBe("lib32-libarchive");
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (1 of 6)");
+    expect(state.stepLabel).toBe("Package 1 of 6 (6 remaining)");
+
+    // lib32-libarchive finishes
+    state = reduceAurProgress(state, "==> Finished making: lib32-libarchive 3.8.11-1", 2, pkgs);
+
+    // Next package (antigravity) starts making
+    state = reduceAurProgress(state, "==> Making package: antigravity 2.34.0-1", 2, pkgs);
+    state = reduceAurProgress(state, "==> Checking runtime dependencies...", 2, pkgs);
+    state = reduceAurProgress(state, "==> Starting package()...", 2, pkgs);
+
+    expect(state.item).toBe("antigravity");
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (2 of 6)");
+    expect(state.stepLabel).toBe("Package 2 of 6 (5 remaining)");
+  });
+
+  it("handles Ukrainian localized makepkg and pacman output", () => {
+    let state: ProgressState = {
+      ...initialProgress,
+      phase: "aur",
+      phaseLabel: "Upgrading AUR packages (1 of 2)",
+      stepLabel: "2 packages queued (2 remaining)",
+      value: 0,
+    };
+
+    state = reduceAurProgress(state, "==> Створення пакунка: spotify 1.2.3-1", 2, ["spotify", "discord"]);
+    expect(state.item).toBe("spotify");
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (1 of 2)");
+
+    state = reduceAurProgress(state, "==> Створення пакунка завершено: spotify 1.2.3-1", 2, ["spotify", "discord"]);
+    state = reduceAurProgress(state, "(1/2) оновлення spotify", 2, ["spotify", "discord"]);
+    expect(state.item).toBe("spotify");
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (1 of 2)");
+
+    state = reduceAurProgress(state, "(2/2) оновлення discord", 2, ["spotify", "discord"]);
+    expect(state.item).toBe("discord");
+    expect(state.phaseLabel).toBe("Upgrading AUR packages (2 of 2)");
+  });
 });

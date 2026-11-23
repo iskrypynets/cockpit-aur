@@ -59,7 +59,7 @@ import { TidyUpModal } from './TidyUpModal';
 import { ConfigReconciliationModal } from './ConfigReconciliationModal';
 import { DEFAULT_KEEP_VERSIONS, type CleanupProjection } from '../cacheProjection';
 import { KeyringWarnings, WarningsAlert } from './KeyringView';
-import { initialProgress, progressPercent, progressValueText, reduceProgress, reduceAurProgress, ProgressPlan, ProgressState } from '../progress';
+import { initialProgress, progressPercent, progressValueText, reduceProgress, reduceAurProgress, foldAurProgress, ProgressPlan, ProgressState } from '../progress';
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
@@ -1128,8 +1128,8 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
         if (status.status === "running") {
           const total = status.total || 1;
           const pkgs = status.packages || [];
-          setState("applying");
-          setUpgradeProgress({
+          const baseState: ProgressState = {
+            ...initialProgress,
             value: 50,
             phase: "aur",
             phaseLabel: `Upgrading AUR packages (${pkgs.length > 0 ? "in progress" : "running"})`,
@@ -1138,15 +1138,14 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
             stage: "transaction",
             fileBytes: {},
             removeTotal: 0,
-          });
+            aurPackages: pkgs,
+          };
+          setState("applying");
+          setUpgradeProgress(baseState);
           getAurOperationLog().then((data) => {
             if (active && data.log) {
               replaceLog(data.log);
-              for (const line of data.log.split("\n")) {
-                if (line.trim()) {
-                  setUpgradeProgress((prev) => reduceAurProgress(prev, line, total, pkgs));
-                }
-              }
+              setUpgradeProgress(foldAurProgress(baseState, data.log, total, pkgs));
             }
           });
           interval = setInterval(() => {
@@ -1155,11 +1154,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
               getAurOperationLog().then((data) => {
                 if (active && data.log) {
                   replaceLog(data.log);
-                  for (const line of data.log.split("\n")) {
-                    if (line.trim()) {
-                      setUpgradeProgress((prev) => reduceAurProgress(prev, line, total, pkgs));
-                    }
-                  }
+                  setUpgradeProgress(foldAurProgress(baseState, data.log, total, pkgs));
                 }
               });
               if (st.status !== "running") {
@@ -1468,13 +1463,9 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
         onEvent: handleEvent,
         onData: (data) => {
           appendLog(data);
-          for (const line of data.split("\n")) {
-            if (line.trim()) {
-              setUpgradeProgress((prev) =>
-                reduceAurProgress(prev, line, totalAur, resolvedAurPackages)
-              );
-            }
-          }
+          setUpgradeProgress((prev) =>
+            foldAurProgress(prev, data, totalAur, resolvedAurPackages)
+          );
         },
         onComplete: () => {
           setUpgradeProgress((prev) => ({

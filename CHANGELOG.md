@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.6] - 2026-11-23
+
+### Fixed
+- **Accurate AUR Progress & Active Package Tracking (`reduceAurProgress`)**:
+  - Fixed premature advancement of package status and progress bar during multi-package AUR upgrades.
+  - Eliminated restrictive target-list filtering that rejected dependency packages, ensuring currently compiling AUR dependencies (e.g. `lib32-libarchive` for `lib32-imlib2`) are accurately shown in the UI title, step label, and progress counter.
+  - Added dynamic package and dependency discovery from helper headers (`:: X dependencies will also be installed`) and SRCINFO parsing (`:: (X/Y) Parsing SRCINFO: <pkg>`), keeping total package counts and remaining items synchronized with actual helper build queues.
+  - Separated pre-download and source verification phases from compilation, preventing progress jumps to 75% before any package has started building.
+  - Added support for Ukrainian and Russian localized `makepkg` and `pacman` status output (`==> Створення пакунка:`, `оновлення`, etc.).
+  - Introduced `foldAurProgress` to batch-process log chunks and reconnected logs in a single pass, preventing excessive React re-renders and accumulator desynchronization.
+
 ## [0.5.5] - 2026-11-22
 
 ### Fixed
