@@ -33,6 +33,8 @@ export const uk: TranslationMap = {
   share: "Поділитися",
   download: "Завантажити",
   jumpToLatest: "До останнього",
+  openMirrors: "Відкрити Дзеркала",
+  mirrorRecommendation: "Якщо невідповідне або повільне дзеркало сповільнює чи блокує перевірку, оновлення списку дзеркал зазвичай вирішує проблему.",
 
   // Progress Phases & Labels
   preparing: "Підготовка",

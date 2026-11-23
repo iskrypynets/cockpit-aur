@@ -149,6 +149,20 @@ pub fn check_updates() -> Result<()> {
             }
         }
     }
+
+    // Check mirrorlist staleness (> 30 days)
+    if let Ok(metadata) = std::fs::metadata("/etc/pacman.d/mirrorlist") {
+        if let Ok(modified) = metadata.modified() {
+            if let Ok(elapsed) = modified.elapsed() {
+                let days = elapsed.as_secs() / 86400;
+                if days >= 30 {
+                    warnings.push(format!(
+                        "Mirror list (/etc/pacman.d/mirrorlist) was last updated {days} days ago. Consider refreshing mirrors."
+                    ));
+                }
+            }
+        }
+    }
     let sync_dir = std::path::Path::new(handle.dbpath()).join("sync");
     let response = UpdatesResponse {
         updates,

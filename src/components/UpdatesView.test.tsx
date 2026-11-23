@@ -3820,6 +3820,17 @@ describe("UpdatesView", () => {
       }
     });
 
+    it("suggests opening Mirrors when checkUpdates times out", async () => {
+      mockCheckUpdates.mockRejectedValueOnce(new api.BackendError("Backend operation timed out after 30s", "timeout"));
+      render(<UpdatesView />);
+      expect(await screen.findByRole("heading", { name: "Error checking for updates" })).toBeInTheDocument();
+      expect(screen.getByText(/updating your mirror list usually resolves this/i)).toBeInTheDocument();
+      const openMirrorsBtn = screen.getByRole("button", { name: "Open Mirrors" });
+      expect(openMirrorsBtn).toBeInTheDocument();
+      fireEvent.click(openMirrorsBtn);
+      expect(cockpit.location.path).toEqual(["mirrors"]);
+    });
+
     it("keeps the selection across Refresh and selects updates that are new", async () => {
       mockCheckUpdates.mockResolvedValueOnce({ updates: [...mockUpdatesResponse.updates, glibc], warnings: [], ...SYNC_TIMES });
       render(<UpdatesView />);

@@ -13,7 +13,7 @@ import { GatedButton, useGateTooltip } from "./GatedButton";
 import { useSecurityAdvisories } from "../hooks/useSecurityAdvisories";
 import { usePageVisible } from "../hooks/usePageVisible";
 import { useRefreshOnActivate, useTabActive } from "../hooks/useRefreshOnActivate";
-import { useRouteOptionsSync, type RouteOptions } from "../hooks/useRoute";
+import { useRoute, useRouteOptionsSync, type RouteOptions } from "../hooks/useRoute";
 import { describeUpgrade, formatTotalsLine, needsUpgradeConfirm, selectionTotals, removalNames, upgradeCounts, type UpgradeCounts } from "../transactionTotals";
 import {
 	Card,
@@ -444,6 +444,7 @@ export const UpdatesView: React.FC<UpdatesViewProps> = (props) => (
 const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
   signoffCredentials, toSignOff = null, onToSignOffCount, onUpdateStatus, routeOptions, onRouteChange,
 }) => {
+  const { navigate } = useRoute();
   const navigation = useNavigation();
   const { onViewDependencies, onViewHistory, onViewKeyring, onViewSignoffs, onViewOrphans } = navigation;
   const announce = useAnnounce();
@@ -2432,6 +2433,12 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
     const signatureFailure = !isLockError && (errorCode ?? parseErrorCode(error ?? "")) === "signature_error"
       && (errorOrigin === "preflight" || errorOrigin === "upgrade");
     const showOpenKeyring = signatureFailure && !!onViewKeyring;
+    const isCheckOrSync = errorOrigin === "check" || errorOrigin === "sync";
+    const isTimeoutOrMirrorIssue = isCheckOrSync && !isLockError && (
+      errorCode === "timeout" ||
+      errorCode === "network_error" ||
+      (!errorCode && error ? /timed? ?out|connection|connect|mirror/i.test(error) : false)
+    );
     return withDetails(
       <Card>
         <CardBody>
@@ -2442,6 +2449,7 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
               onRetry={() => retryFailed(true)}
               retryLabel={RETRY_LABELS[retryOrigin(true)]}
               onDismiss={dismissError}
+              onViewMirrors={() => navigate("mirrors")}
             />
           ) : (
             <EmptyState
@@ -2456,6 +2464,11 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
                 {showLockRecovery
                   ? <LockErrorBody key={errorEpoch} onRetry={manualResumeAfterLock} onAutoRetry={autoResumeAfterLock} onReleased={manualResumeAfterLock} onCleared={() => setLockCleared(true)} retryLabel="Resume" onStateChange={setLockWaitState} />
                   : error}
+                {isTimeoutOrMirrorIssue && (
+                  <Content component={ContentVariants.p} className="pf-v6-u-mt-sm">
+                    {t("mirrorRecommendation")}
+                  </Content>
+                )}
                 {signatureFailure && <Content component={ContentVariants.p} className="pf-v6-u-mt-sm">{SIGNATURE_HELP}</Content>}
                 <ErrorDetails details={errorDetails} />
               </EmptyStateBody>
@@ -2463,6 +2476,11 @@ const UpdatesViewContent: React.FC<UpdatesViewProps> = ({
                 <EmptyStateActions>
                   {showOpenKeyring && (
                     <Button variant="primary" onClick={openKeyringForRetry}>Open Keyring</Button>
+                  )}
+                  {isTimeoutOrMirrorIssue && (
+                    <Button variant="secondary" onClick={() => navigate("mirrors")}>
+                      {t("openMirrors")}
+                    </Button>
                   )}
                   {!(showLockRecovery && HOST_RETRY_HIDDEN.has(lockWaitState)) && (
                     <Button

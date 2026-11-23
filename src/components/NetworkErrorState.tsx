@@ -8,6 +8,7 @@ import {
 } from "@patternfly/react-core";
 import { DisconnectedIcon } from "@patternfly/react-icons";
 import { ARCH_STATUS_URL } from "../constants";
+import { t } from "../i18n";
 
 interface NetworkErrorStateProps {
   /** What couldn't be loaded, e.g. "updates", "mirror status". */
@@ -16,6 +17,7 @@ interface NetworkErrorStateProps {
   retryLabel?: string;
   onDismiss?: () => void;
   headingLevel?: "h1" | "h2" | "h3" | "h4";
+  onViewMirrors?: () => void;
 }
 
 /**
@@ -29,6 +31,7 @@ export const NetworkErrorState: React.FunctionComponent<NetworkErrorStateProps> 
   retryLabel = "Try again",
   onDismiss,
   headingLevel = "h2",
+  onViewMirrors,
 }) => (
   <EmptyState
     headingLevel={headingLevel}
@@ -43,13 +46,23 @@ export const NetworkErrorState: React.FunctionComponent<NetworkErrorStateProps> 
         Arch Linux status page
       </a>
       .
+      {onViewMirrors && (
+        <span className="pf-v6-u-display-block pf-v6-u-mt-sm">
+          {t("mirrorRecommendation")}
+        </span>
+      )}
     </EmptyStateBody>
-    {(onRetry || onDismiss) && (
+    {(onRetry || onDismiss || onViewMirrors) && (
       <EmptyStateFooter>
         <EmptyStateActions>
           {onRetry && (
             <Button variant="primary" onClick={() => onRetry()}>
               {retryLabel}
+            </Button>
+          )}
+          {onViewMirrors && (
+            <Button variant="secondary" onClick={onViewMirrors}>
+              {t("openMirrors")}
             </Button>
           )}
           {onDismiss && (

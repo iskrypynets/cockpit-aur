@@ -40,4 +40,16 @@ describe("NetworkErrorState", () => {
     render(<NetworkErrorState />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
+
+  it("renders mirror recommendation and Open Mirrors action when onViewMirrors is provided", () => {
+    const onViewMirrors = vi.fn();
+    render(<NetworkErrorState onViewMirrors={onViewMirrors} />);
+
+    expect(screen.getByText(/updating your mirror list usually resolves this/i)).toBeInTheDocument();
+    const mirrorBtn = screen.getByRole("button", { name: "Open Mirrors" });
+    expect(mirrorBtn).toBeInTheDocument();
+
+    fireEvent.click(mirrorBtn);
+    expect(onViewMirrors).toHaveBeenCalledTimes(1);
+  });
 });

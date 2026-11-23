@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.9] - 2026-11-23
+
+### Added
+- **Mirror List Refresh Recommendation & Action (`UpdatesView`, `NetworkErrorState`)**:
+  - Added contextual recommendation on update check timeouts and connection failures advising that unresponsive or stale mirrors are typically resolved by updating the mirror list.
+  - Added direct **"Open Mirrors"** action button on update check failure states (`UpdatesView` empty state and `NetworkErrorState`) enabling one-click navigation to the Mirrors view to benchmark and update `/etc/pacman.d/mirrorlist`.
+  - Added localized strings for English and Ukrainian (`openMirrors`, `mirrorRecommendation`).
+- **Mirror Staleness Detection (`backend/src/handlers/query.rs`)**:
+  - Implemented automatic check for `/etc/pacman.d/mirrorlist` age during `check-updates`.
+  - When the mirrorlist was last modified over 30 days ago, surfaces a warning recommending a mirror refresh.
+
 ## [0.5.8] - 2026-11-23
 
 ### Fixed

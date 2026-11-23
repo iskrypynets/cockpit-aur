@@ -31,6 +31,8 @@ export const en = {
   share: "Share",
   download: "Download",
   jumpToLatest: "Jump to latest",
+  openMirrors: "Open Mirrors",
+  mirrorRecommendation: "If an unresponsive or slow mirror is delaying or failing the check, updating your mirror list usually resolves this.",
 
   // Progress Phases & Labels
   preparing: "Preparing",
