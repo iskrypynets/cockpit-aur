@@ -38,7 +38,7 @@ import { CredentialError, getCredentials, type CredentialErrorReason } from "../
 import { NavigationProvider, type CacheContext, type KeyringContext } from "../contexts/NavigationContext";
 import { DowngradeProvider } from "../contexts/DowngradeContext";
 import { bundleVersion, mismatchedBackendVersion } from "../version";
-import { onActiveTransactionChanged, onSystemChanged } from "../api";
+import { getBackendVersion, onActiveTransactionChanged, onSystemChanged } from "../api";
 import { useAnnounce } from "../contexts/AnnouncerContext";
 import { currentTab, useRoute, type RouteOptions } from "../hooks/useRoute";
 import { useTranslation } from "../i18n/index";
@@ -279,6 +279,42 @@ export const App: React.FC = () => {
     const warn = (event: Event) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
+  }, [transactionRunning]);
+
+  // When device wakes up (screen unlocked, browser tab foregrounded), verify transport health
+  useEffect(() => {
+    let checking = false;
+    const onWake = () => {
+      if (document.hidden || checking || transactionRunning) return;
+      checking = true;
+      getBackendVersion()
+        .then(() => {
+          checking = false;
+        })
+        .catch((err: unknown) => {
+          checking = false;
+          const msg = String(
+            (err as { message?: string })?.message ||
+            (err as { problem?: string })?.problem ||
+            err
+          );
+          if (
+            msg.includes("closed") ||
+            msg.includes("disconnected") ||
+            msg.includes("terminated") ||
+            msg.includes("not-permitted")
+          ) {
+            window.location.reload();
+          }
+        });
+    };
+
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    return () => {
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+    };
   }, [transactionRunning]);
 
   // The plugin can upgrade itself in a transaction, so the check repeats after each one.

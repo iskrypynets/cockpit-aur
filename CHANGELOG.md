@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.11] - 2026-11-23
+
+### Fixed
+- **Mobile Sleep & Session Lock Recovery (`RootBoundary`, `App`)**:
+  - Added automatic wake detection on `visibilitychange` and `focus` events when device is unlocked or browser tab is foregrounded.
+  - Added transport health check on wake; automatically reloads the page to establish a fresh session if the Cockpit WebSocket connection was severed during sleep, eliminating the need to manually click "Reload page".
+  - Configured systemd drop-in `idle-timeout.conf` (`--idle-timeout=0`) for `cockpit.service` to prevent Cockpit web service from automatically terminating after 90 seconds of connection inactivity.
+  - Removed disruptive `systemctl restart cockpit.service` from `deploy.sh`, preserving live sessions during package updates.
+
 ## [0.5.10] - 2026-11-23
 
 ### Fixed

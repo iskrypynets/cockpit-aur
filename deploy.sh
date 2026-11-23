@@ -6,7 +6,7 @@
 # 1. ALWAYS builds a full Arch Linux package via makepkg (NO partial file copying!).
 # 2. ALWAYS cleans up any shadowing user overrides (~/.local/share/cockpit/aur).
 # 3. ALWAYS installs cleanly via `pacman -U`.
-# 4. Restarts cockpit service and socket.
+# 4. Leaves running Cockpit sessions untouched (no service restart).
 # 5. ALWAYS runs full automated verification suite (tools/verify_deploy.py)
 #    and FAILS with non-zero exit code if any test fails.
 #
@@ -238,9 +238,9 @@ deploy_local() {
         sudo /opt/arch-motd/generate_motd.sh
     fi
 
-    # Restart Cockpit
-    echo "Restarting Cockpit service & socket..."
-    sudo systemctl restart cockpit.service cockpit.socket
+    # Do NOT restart cockpit.service/cockpit.socket: that kills every live
+    # Cockpit session (login + admin access) on the host. cockpit-ws serves
+    # package files from disk per request, so new files are picked up without it.
 
     # Verify deployment
     echo -e "\n\033[1;34m[3/3] Running automated deployment self-test for local (vampa)...\033[0m"
@@ -291,7 +291,6 @@ if [ -f "/tmp/generate_motd.sh" ]; then
     sudo /opt/arch-motd/generate_motd.sh
     rm -f /tmp/generate_motd.sh
 fi
-sudo systemctl restart cockpit.service cockpit.socket
 EOF
 
     # Verify remote deployment

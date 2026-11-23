@@ -24,13 +24,32 @@ interface RootBoundaryState {
 /** Catches shell errors; reloads because a broken provider may fail again on remount. */
 export class RootBoundary extends Component<RootBoundaryProps, RootBoundaryState> {
   state: RootBoundaryState = { error: null };
+  private wakeListener?: () => void;
 
   static getDerivedStateFromError(error: Error): RootBoundaryState {
     return { error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error("cockpit-pacman stopped working:", error, errorInfo);
+    console.error("cockpit-aur stopped working:", error, errorInfo);
+  }
+
+  componentDidMount(): void {
+    this.wakeListener = () => {
+      if (!document.hidden && this.state.error) {
+        // Automatically reload when returning to a crashed or disconnected session
+        window.location.reload();
+      }
+    };
+    document.addEventListener("visibilitychange", this.wakeListener);
+    window.addEventListener("focus", this.wakeListener);
+  }
+
+  componentWillUnmount(): void {
+    if (this.wakeListener) {
+      document.removeEventListener("visibilitychange", this.wakeListener);
+      window.removeEventListener("focus", this.wakeListener);
+    }
   }
 
   render(): ReactNode {
