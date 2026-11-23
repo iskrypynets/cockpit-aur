@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.10] - 2026-11-23
+
+### Fixed
+- **Consistent English Default Locale (`src/timeFormat.ts`, `src/i18n/index.ts`)**:
+  - Pinned `Intl.RelativeTimeFormat`, `formatFullTimestamp`, and `formatFullDate` strictly to English (`en`, `en-US`), eliminating sporadic mixed-language localized date outputs (e.g. "учора" on English views).
+  - Set default application locale strictly to English unless explicitly persisted via settings, ensuring a 100% consistent interface across all views.
+
 ## [0.5.9] - 2026-11-23
 
 ### Added

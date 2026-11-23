@@ -13,28 +13,9 @@ const listeners = new Set<Listener>();
 export function detectLocale(): Locale {
   try {
     const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-    if (stored === "en" || stored === "uk") return stored;
-
-    // Check Cockpit language global if available
-    const cockpitLang = typeof window !== "undefined" && (window as unknown as { cockpit?: { language?: string } }).cockpit?.language;
-    if (cockpitLang) {
-      const lower = cockpitLang.toLowerCase();
-      if (lower.startsWith("uk")) return "uk";
-      return "en";
-    }
-
-    // In automated test environment, default to English so baseline test assertions pass
-    if (typeof process !== "undefined" && (process.env?.NODE_ENV === "test" || process.env?.VITEST)) {
-      return "en";
-    }
-
-    // Check browser navigator language
-    const navLang = typeof navigator !== "undefined" ? navigator.language : "";
-    if (navLang && navLang.toLowerCase().startsWith("uk")) {
-      return "uk";
-    }
+    if (stored === "uk") return "uk";
   } catch {
-    // Ignore storage/navigator access errors
+    // Ignore storage errors
   }
   return "en";
 }

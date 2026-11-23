@@ -1,6 +1,6 @@
 # Maintainer: gf <green_forest@ukr.net>
 pkgname=cockpit-aur
-pkgver=0.5.9
+pkgver=0.5.10
 pkgrel=1
 pkgdesc="Cockpit plugin for Arch Linux package management with AUR and yay/paru support"
 arch=('x86_64')

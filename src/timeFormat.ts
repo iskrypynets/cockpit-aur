@@ -1,4 +1,4 @@
-const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
 const THRESHOLDS: [number, Intl.RelativeTimeFormatUnit][] = [
   [60, "second"],
@@ -58,11 +58,11 @@ export function formatRelativeTime(date: Date): string {
 }
 
 export function formatFullTimestamp(date: Date): string {
-  return date.toLocaleString();
+  return date.toLocaleString("en-US");
 }
 
 export function formatFullDate(date: Date): string {
-  return date.toLocaleDateString();
+  return date.toLocaleDateString("en-US");
 }
 
 const subscribers = new Set<() => void>();
